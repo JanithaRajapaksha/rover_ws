@@ -1,0 +1,440 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- FRONT CENTER IR SENSOR -->
+  <joint name="ir_front_center_joint" type="fixed">
+    <origin xyz="0.287 0 0.08" rpy="0 0 0"/>
+    <parent link="chassis"/>
+    <child link="base_ir_front_center"/>
+  </joint>
+
+  <link name="base_ir_front_center">
+    <visual>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1e-5"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="base_ir_front_center">
+    <material>Gazebo/Red</material>
+    <sensor type="ray" name="ir_front_center_sensor">
+      <pose>0 0 0 0 0 0</pose>
+      <visualize>true</visualize>
+      <update_rate>50</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>10</samples>
+            <resolution>1.0</resolution>
+            <min_angle>-0.218</min_angle>
+            <max_angle>0.218</max_angle>
+          </horizontal>
+          <vertical>
+            <samples>1</samples>
+            <resolution>1.0</resolution>
+            <min_angle>0</min_angle>
+            <max_angle>0</max_angle>
+          </vertical>
+        </scan>
+        <range>
+          <min>0.01</min>
+          <max>0.8</max>
+          <resolution>0.02</resolution>
+        </range>
+      </ray>
+      <plugin name="gazebo_ros_range_front_center" filename="libgazebo_ros_ray_sensor.so">
+        <gaussianNoise>0.005</gaussianNoise>
+        <updateRate>50</updateRate>
+        <topicName>/sensor/ir_front_center</topicName>
+        <frameName>base_ir_front_center</frameName>
+        <radiation>INFRARED</radiation>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+
+  <!-- FRONT LEFT IR SENSOR -->
+  <joint name="ir_front_left_joint" type="fixed">
+    <origin xyz="0.287 0.1135 0.08" rpy="0 0 0"/> <!-- ~15° outward -->
+    <parent link="chassis"/>
+    <child link="base_ir_front_left"/>
+  </joint>
+
+  <link name="base_ir_front_left">
+    <visual>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1e-5"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="base_ir_front_left">
+    <material>Gazebo/Red</material>
+    <sensor type="ray" name="ir_front_left_sensor">
+      <pose>0 0 0 0 0 0.79</pose>
+      <visualize>true</visualize>
+      <update_rate>50</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>10</samples>
+            <resolution>1.0</resolution>
+            <min_angle>0.572</min_angle>
+            <max_angle>1.008</max_angle>
+          </horizontal>
+          <vertical>
+            <samples>1</samples>
+            <resolution>1.0</resolution>
+            <min_angle>0</min_angle>
+            <max_angle>0</max_angle>
+          </vertical>
+        </scan>
+        <range>
+          <min>0.01</min>
+          <max>0.8</max>
+          <resolution>0.02</resolution>
+        </range>
+      </ray>
+      <plugin name="gazebo_ros_range_front_left" filename="libgazebo_ros_ray_sensor.so">
+        <gaussianNoise>0.005</gaussianNoise>
+        <updateRate>50</updateRate>
+        <topicName>/sensor/ir_front_left</topicName>
+        <frameName>base_ir_front_left</frameName>
+        <radiation>INFRARED</radiation>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+
+  <!-- FRONT RIGHT IR SENSOR -->
+  <joint name="ir_front_right_joint" type="fixed">
+    <origin xyz="0.287 -0.1135 0.08" rpy="0 0 0"/> <!-- ~15° outward -->
+    <parent link="chassis"/>
+    <child link="base_ir_front_right"/>
+  </joint>
+
+  <link name="base_ir_front_right">
+    <visual>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1e-5"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="base_ir_front_right">
+    <material>Gazebo/Red</material>
+    <sensor type="ray" name="ir_front_right_sensor">
+      <pose>0 0 0 0 0 -0.79</pose>
+      <visualize>true</visualize>
+      <update_rate>50</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>10</samples>
+            <resolution>1.0</resolution>
+            <min_angle>-0.572</min_angle>
+            <max_angle>-1.008</max_angle>
+          </horizontal>
+          <vertical>
+            <samples>1</samples>
+            <resolution>1.0</resolution>
+            <min_angle>0</min_angle>
+            <max_angle>0</max_angle>
+          </vertical>
+        </scan>
+        <range>
+          <min>0.01</min>
+          <max>0.8</max>
+          <resolution>0.02</resolution>
+        </range>
+      </ray>
+      <plugin name="gazebo_ros_range_front_right" filename="libgazebo_ros_ray_sensor.so">
+        <gaussianNoise>0.005</gaussianNoise>
+        <updateRate>50</updateRate>
+        <topicName>/sensor/ir_front_right</topicName>
+        <frameName>base_ir_front_right</frameName>
+        <radiation>INFRARED</radiation>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- LEFT SIDE IR SENSOR -->
+  <joint name="ir_left_joint" type="fixed">
+    <origin xyz="0.146 0.1135 0.08" rpy="0 0 0"/> <!-- 90° rotated -->
+    <parent link="chassis"/>
+    <child link="base_ir_left"/>
+  </joint>
+
+  <link name="base_ir_left">
+    <visual>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1e-5"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="base_ir_left">
+    <material>Gazebo/Red</material>
+    <sensor type="ray" name="ir_left_sensor">
+      <pose>0 0 0 0 0 1.57</pose>
+      <visualize>true</visualize>
+      <update_rate>50</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>10</samples>
+            <resolution>1.0</resolution>
+<min_angle>1.352</min_angle>
+<max_angle>1.788</max_angle>
+
+          </horizontal>
+          <vertical>
+            <samples>1</samples>
+            <resolution>1.0</resolution>
+            <min_angle>0</min_angle>
+            <max_angle>0</max_angle>
+          </vertical>
+        </scan>
+        <range>
+          <min>0.01</min>
+          <max>0.8</max>
+          <resolution>0.02</resolution>
+        </range>
+      </ray>
+      <plugin name="gazebo_ros_range_left" filename="libgazebo_ros_ray_sensor.so">
+        <gaussianNoise>0.005</gaussianNoise>
+        <updateRate>50</updateRate>
+        <topicName>/sensor/ir_left</topicName>
+        <frameName>base_ir_left</frameName>
+        <radiation>INFRARED</radiation>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+
+  <!-- RIGHT SIDE IR SENSOR -->
+  <joint name="ir_right_joint" type="fixed">
+    <origin xyz="0.146 -0.1135 0.08" rpy="0 0 0"/> <!-- -90° rotated -->
+    <parent link="chassis"/>
+    <child link="base_ir_right"/>
+  </joint>
+
+  <link name="base_ir_right">
+    <visual>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1e-5"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="base_ir_right">
+    <material>Gazebo/Red</material>
+    <sensor type="ray" name="ir_right_sensor">
+      <pose>0 0 0 0 0 -1.57</pose>
+      <visualize>true</visualize>
+      <update_rate>50</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>10</samples>
+            <resolution>1.0</resolution>
+<min_angle>-1.352</min_angle>
+<max_angle>-1.788</max_angle>
+          </horizontal>
+          <vertical>
+            <samples>1</samples>
+            <resolution>1.0</resolution>
+            <min_angle>0</min_angle>
+            <max_angle>0</max_angle>
+          </vertical>
+        </scan>
+        <range>
+          <min>0.01</min>
+          <max>0.8</max>
+          <resolution>0.02</resolution>
+        </range>
+      </ray>
+      <plugin name="gazebo_ros_range_right" filename="libgazebo_ros_ray_sensor.so">
+        <gaussianNoise>0.005</gaussianNoise>
+        <updateRate>50</updateRate>
+        <topicName>/sensor/ir_right</topicName>
+        <frameName>base_ir_right</frameName>
+        <radiation>INFRARED</radiation>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- REAR LEFT IR SENSOR -->
+  <joint name="ir_back_left_joint" type="fixed">
+    <origin xyz="0 0.07 0.08" rpy="0 0 0"/> <!-- 180° rotated -->
+    <parent link="chassis"/>
+    <child link="base_ir_back_left"/>
+  </joint>
+
+  <link name="base_ir_back_left">
+    <visual>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1e-5"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+
+  <gazebo reference="base_ir_back_left">
+    <material>Gazebo/Red</material>
+    <sensor type="ray" name="ir_back_left_sensor">
+      <pose>0 0 0 0 0 3.14</pose>
+      <visualize>true</visualize>
+      <update_rate>50</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>10</samples>
+            <resolution>1.0</resolution>
+            <min_angle>2.922</min_angle>
+            <max_angle>3.358</max_angle>
+          </horizontal>
+          <vertical>
+            <samples>1</samples>
+            <resolution>1.0</resolution>
+            <min_angle>0</min_angle>
+            <max_angle>0</max_angle>
+          </vertical>
+        </scan>
+        <range>
+          <min>0.01</min>
+          <max>0.8</max>
+          <resolution>0.02</resolution>
+        </range>
+      </ray>
+      <plugin name="gazebo_ros_range_back_left" filename="libgazebo_ros_ray_sensor.so">
+        <gaussianNoise>0.005</gaussianNoise>
+        <updateRate>50</updateRate>
+        <topicName>/sensor/ir_back_left</topicName>
+        <frameName>base_ir_back_left</frameName>
+        <radiation>INFRARED</radiation>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+
+  <!-- REAR RIGHT IR SENSOR -->
+  <joint name="ir_back_right_joint" type="fixed">
+    <origin xyz="0 -0.07 0.08" rpy="0 0 0"/> <!-- also rotated 180° -->
+    <parent link="chassis"/>
+    <child link="base_ir_back_right"/>
+  </joint>
+
+  <link name="base_ir_back_right">
+    <visual>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.005 0.015 0.01"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1e-5"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="base_ir_back_right">
+  <material>Gazebo/Red</material>
+  <sensor type="ray" name="ir_back_right_sensor">
+    <pose>0 0 0 0 0 3.14</pose>
+    <visualize>true</visualize>
+    <update_rate>50</update_rate>
+    <ray>
+      <scan>
+        <horizontal>
+          <samples>2</samples> <!-- single ray for Range -->
+          <resolution>1.0</resolution>
+          <min_angle>2.922</min_angle>
+            <max_angle>3.358</max_angle>
+        </horizontal>
+        <vertical>
+          <samples>1</samples>
+          <resolution>1.0</resolution>
+          <min_angle>0</min_angle>
+          <max_angle>0</max_angle>
+        </vertical>
+      </scan>
+      <range>
+        <min>0.01</min>
+        <max>0.8</max>
+        <resolution>0.02</resolution>
+      </range>
+    </ray>
+
+    <!-- Use gazebo_ros_range plugin -->
+    <plugin name="gazebo_ros_range_back_right" filename="libgazebo_ros_ray_sensor.so">
+      <topicName>/sensor/ir_back_right</topicName>
+      <frameName>base_ir_back_right</frameName>
+      <updateRate>50</updateRate>
+      <radiation>INFRARED</radiation>
+      <gaussianNoise>0.005</gaussianNoise>
+    </plugin>
+  </sensor>
+</gazebo>
+
+
+</robot>
