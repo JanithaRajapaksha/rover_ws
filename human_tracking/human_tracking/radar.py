@@ -29,19 +29,19 @@ class RD03D:
     MULTI_TARGET_CMD  = bytes([0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x90, 0x00, 0x04, 0x03, 0x02, 0x01])
     
     def __init__(self, uart_port='/dev/ttyAMA0', baudrate=256000, multi_mode=True):
-    self.uart = serial.Serial(uart_port, baudrate, timeout=0.1)
-    self.targets = []  # Stores up to 3 targets
-    self.buffer = b''  # Buffer to handle split messages
-    # Removed artificial startup sleep to avoid delays
-    self.set_multi_mode(multi_mode)
+        self.uart = serial.Serial(uart_port, baudrate, timeout=0.1)
+        self.targets = []  # Stores up to 3 targets
+        self.buffer = b''  # Buffer to handle split messages
+        # Removed artificial startup sleep to avoid delays
+        self.set_multi_mode(multi_mode)
     
     def set_multi_mode(self, multi_mode=True):
         """Set Radar mode: True=Multi-target, False=Single-target"""
         cmd = self.MULTI_TARGET_CMD if multi_mode else self.SINGLE_TARGET_CMD
-    self.uart.write(cmd)
-    self.uart.flush()  # Force immediate send
-    # Removed sleep here to avoid artificial delay during mode switch
-    self.uart.reset_input_buffer()  # Clear buffer after switching
+        self.uart.write(cmd)
+        self.uart.flush()  # Force immediate send
+        # Removed sleep here to avoid artificial delay during mode switch
+        self.uart.reset_input_buffer()  # Clear buffer after switching
         self.buffer = b''  # Clear internal buffer too
         self.multi_mode = multi_mode
     
@@ -187,9 +187,8 @@ class RD03DAngularTracker(Node):
             setpoint=self.get_parameter('angle_setpoint').value
         )
 
-        # --- Publishers ---
-        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
-        self.marker_pub = self.create_publisher(Marker, '/radar_target_marker', 10)
+    # --- Publishers ---
+    self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
 
         # --- Timer ---
         self.timer = self.create_timer(0.05, self.loop)  # 20 Hz
@@ -214,27 +213,11 @@ class RD03DAngularTracker(Node):
         twist.angular.z = angular_z
         self.cmd_pub.publish(twist)
 
-        self.publish_marker(target)
-
         self.get_logger().info(
             f"Target {self.target_id}: angle={angle:.1f}°, cmd_ang={angular_z:.3f}"
         )
 
-    def publish_marker(self, target):
-        marker = Marker()
-        marker.header.frame_id = "base_link"
-        marker.header.stamp = self.get_clock().now().to_msg()
-        marker.ns = "rd03d_targets"
-        marker.id = 0
-        marker.type = Marker.SPHERE
-        marker.action = Marker.ADD
-        marker.pose.position.x = target.y / 1000.0
-        marker.pose.position.y = target.x / 1000.0
-        marker.pose.position.z = 0.1
-        marker.scale.x = marker.scale.y = marker.scale.z = 0.1
-        marker.color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=0.8)
-        marker.lifetime.sec = 0
-        self.marker_pub.publish(marker)
+    # Marker publishing removed to avoid RViz dependency and reduce delays
 
     def destroy_node(self):
         try:
