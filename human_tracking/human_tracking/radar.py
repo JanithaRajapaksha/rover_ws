@@ -207,7 +207,7 @@ class RD03DAngularTracker(Node):
         self.target_id = self.get_parameter('target_id').value
 
         # --- Kalman filter for angle smoothing ---
-        self.kalman = KalmanFilter(process_variance=1e-4, measurement_variance=0.5)
+        self.kalman = KalmanFilter(process_variance=1e-3, measurement_variance=0.1)
 
         # --- Angular PID controller ---
         self.pid_angle = PID(
