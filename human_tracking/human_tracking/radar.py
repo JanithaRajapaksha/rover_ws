@@ -206,10 +206,7 @@ class RD03DAngularTracker(Node):
         self.radar = RD03D(port, baudrate, multi_mode=True)
         self.target_id = self.get_parameter('target_id').value
 
-        # --- Kalman filter for angle smoothing ---
-        self.kalman = KalmanFilter(process_variance=1e-3, measurement_variance=0.1)
-
-        # --- Angular PID controller ---
+        # --- PID controller for angular correction ---
         self.pid_angle = PID(
             self.get_parameter('kp_ang').value,
             self.get_parameter('ki_ang').value,
@@ -220,33 +217,48 @@ class RD03DAngularTracker(Node):
         # --- Publisher ---
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
 
-        # --- Timer ---
-        self.timer = self.create_timer(0.2, self.loop)  # 5 Hz
+        # --- Internal state ---
+        self.latest_angle = 0.0
+        self.has_target = False
 
-        self.get_logger().info("✅ RD03D Angular Tracker with Kalman Filter Started!")
+        # --- Timers ---
+        self.radar_timer = self.create_timer(0.2, self.read_radar)  # read every 0.2s
+        self.control_timer = self.create_timer(0.01, self.control_loop)  # PID at 100Hz
 
-    def loop(self):
+        self.get_logger().info("✅ RD03D Angular Tracker (Real-time PID) Started!")
+
+    # --------------------------
+    #   Read Radar Every 0.2s
+    # --------------------------
+    def read_radar(self):
         if not self.radar.update():
+            self.has_target = False
             return
 
         target = self.radar.get_target(self.target_id)
         if target is None:
+            self.has_target = False
             return
 
-        raw_angle = target.angle
-        filtered_angle = self.kalman.update(raw_angle)
+        self.latest_angle = target.angle
+        self.has_target = True
 
-        # --- Compute angular correction ---
-        angular_z = self.pid_angle.compute(filtered_angle)
-        angular_z = max(min(angular_z, 0.2), -0.2)
+    # --------------------------
+    #   PID Control at 100 Hz
+    # --------------------------
+    def control_loop(self):
+        if not self.has_target:
+            return  # no valid reading yet
+
+        angular_z = self.pid_angle.compute(self.latest_angle)
+        angular_z = max(min(angular_z, 0.2), -0.2)  # clamp angular speed
 
         twist = Twist()
         twist.angular.z = angular_z
         self.cmd_pub.publish(twist)
 
         self.get_logger().info(
-            f"Target {self.target_id}: raw_angle={raw_angle:.2f}°, "
-            f"filtered={filtered_angle:.2f}°, cmd_ang={angular_z:.3f}"
+            f"Angle={self.latest_angle:.2f}°, cmd_ang={angular_z:.3f}"
         )
 
     def destroy_node(self):
