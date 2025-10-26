@@ -30,12 +30,15 @@ class RD03D:
     SINGLE_TARGET_CMD = bytes([0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x80, 0x00, 0x04, 0x03, 0x02, 0x01])
     MULTI_TARGET_CMD  = bytes([0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x90, 0x00, 0x04, 0x03, 0x02, 0x01])
     
-    def __init__(self, uart_port='/dev/ttyAMA0', baudrate=256000, multi_mode=True):
+    def __init__(self, uart_port='/dev/ttyAMA0', baudrate=256000, multi_mode=True, debug=False):
+        # debug: when True, print lightweight timing/buffer info to help diagnose
+        # why frames may appear delayed or not "real-time".
         self.uart = serial.Serial(uart_port, baudrate, timeout=0.1)
         self.targets = []  # Stores up to 3 targets
         self.buffer = b''  # Buffer to handle split messages
         time.sleep(0.2)
         self.set_multi_mode(multi_mode)
+        self.debug = debug
     
     def set_multi_mode(self, multi_mode=True):
         """Set Radar mode: True=Multi-target, False=Single-target"""
@@ -49,10 +52,17 @@ class RD03D:
     
     @staticmethod
     def parse_signed16(high, low):
-        raw = (high << 8) + low
-        sign = 1 if (raw & 0x8000) else -1
-        value = raw & 0x7FFF
-        return sign * value
+        """Parse 16-bit signed value (two's complement) from two bytes.
+
+        The incoming bytes are (low, high) ordering in the original code's
+        usage sites; this function composes them correctly and returns a
+        negative value when the high bit is set.
+        """
+        raw = (high << 8) | low
+        # proper two's-complement sign conversion
+        if raw & 0x8000:
+            return raw - 0x10000
+        return raw
     
     def _decode_frame(self, data):
         targets = []
@@ -98,6 +108,14 @@ class RD03D:
         if self.uart.in_waiting > 0:
             new_data = self.uart.read(self.uart.in_waiting)
             self.buffer += new_data
+
+        # optional debug: show when new bytes are read and buffer size
+        if getattr(self, 'debug', False):
+            try:
+                now = time.time()
+                print(f"[radar debug] t={now:.3f} in_waiting={self.uart.in_waiting} buffer_len={len(self.buffer)}")
+            except Exception:
+                pass
         
         # If buffer gets too large, keep only the most recent data
         if len(self.buffer) > 300:  # ~10 frames worth
