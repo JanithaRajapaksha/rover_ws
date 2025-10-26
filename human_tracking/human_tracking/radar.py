@@ -32,7 +32,7 @@ class RD03D:
         self.uart = serial.Serial(uart_port, baudrate, timeout=0.1)
         self.targets = []  # Stores up to 3 targets
         self.buffer = b''  # Buffer to handle split messages
-        # Removed artificial startup sleep to avoid delays
+        time.sleep(0.2)
         self.set_multi_mode(multi_mode)
     
     def set_multi_mode(self, multi_mode=True):
@@ -40,7 +40,7 @@ class RD03D:
         cmd = self.MULTI_TARGET_CMD if multi_mode else self.SINGLE_TARGET_CMD
         self.uart.write(cmd)
         self.uart.flush()  # Force immediate send
-        # Removed sleep here to avoid artificial delay during mode switch
+        time.sleep(0.2)
         self.uart.reset_input_buffer()  # Clear buffer after switching
         self.buffer = b''  # Clear internal buffer too
         self.multi_mode = multi_mode
@@ -135,8 +135,6 @@ class RD03D:
         """Close the UART connection"""
         if self.uart.is_open:
             self.uart.close()
-
-
 # ======================
 #  Simple Kalman Filter
 # ======================
@@ -223,7 +221,7 @@ class RD03DAngularTracker(Node):
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
 
         # --- Timer ---
-        self.timer = self.create_timer(0.05, self.loop)  # 10 kHz
+        self.timer = self.create_timer(0.1, self.loop)  # 10 Hz
 
         self.get_logger().info("✅ RD03D Angular Tracker with Kalman Filter Started!")
 
