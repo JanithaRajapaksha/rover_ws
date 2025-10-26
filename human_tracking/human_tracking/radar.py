@@ -172,12 +172,12 @@ class RD03DTracker(Node):
         self.declare_parameter('target_id', 1)
         self.declare_parameter('distance_setpoint', 800.0)  # mm
         self.declare_parameter('angle_setpoint', 0.0)       # degrees
-        self.declare_parameter('kp_lin', 0.002)
+        self.declare_parameter('kp_lin', 1)
         self.declare_parameter('ki_lin', 0.0)
-        self.declare_parameter('kd_lin', 0.0005)
-        self.declare_parameter('kp_ang', 0.05)
+        self.declare_parameter('kd_lin', 0)
+        self.declare_parameter('kp_ang', 1)
         self.declare_parameter('ki_ang', 0.0)
-        self.declare_parameter('kd_ang', 0.005)
+        self.declare_parameter('kd_ang', 0)
 
         # --- Initialize radar ---
         port = self.get_parameter('port').value
