@@ -223,7 +223,7 @@ class RD03DAngularTracker(Node):
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
 
         # --- Timer ---
-        self.timer = self.create_timer(0.0001, self.loop)  # 10 kHz
+        self.timer = self.create_timer(0.05, self.loop)  # 10 kHz
 
         self.get_logger().info("✅ RD03D Angular Tracker with Kalman Filter Started!")
 
