@@ -136,6 +136,32 @@ class RD03D:
         if self.uart.is_open:
             self.uart.close()
 
+
+# ======================
+#  Simple Kalman Filter
+# ======================
+class KalmanFilter:
+    def __init__(self, process_variance=1e-3, measurement_variance=1e-1):
+        self.x = 0.0      # estimated angle
+        self.P = 1.0      # estimation covariance
+        self.Q = process_variance
+        self.R = measurement_variance
+
+    def update(self, measurement):
+        # Prediction step
+        self.P += self.Q
+
+        # Update step
+        K = self.P / (self.P + self.R)
+        self.x += K * (measurement - self.x)
+        self.P *= (1 - K)
+
+        return self.x
+
+
+# ======================
+#        PID Class
+# ======================
 class PID:
     def __init__(self, kp, ki, kd, setpoint=0.0):
         self.kp = kp
@@ -160,6 +186,9 @@ class PID:
         return output
 
 
+# ======================
+#   Main Tracking Node
+# ======================
 class RD03DAngularTracker(Node):
     def __init__(self):
         super().__init__('rd03d_angular_tracker')
@@ -168,18 +197,21 @@ class RD03DAngularTracker(Node):
         self.declare_parameter('port', '/dev/ttyAMA0')
         self.declare_parameter('baudrate', 256000)
         self.declare_parameter('target_id', 1)
-        self.declare_parameter('angle_setpoint', 0.0)  # degrees
+        self.declare_parameter('angle_setpoint', 0.0)
         self.declare_parameter('kp_ang', 0.01)
         self.declare_parameter('ki_ang', 0.0)
         self.declare_parameter('kd_ang', 0.0005)
 
-        # --- Initialize radar ---
+        # --- Radar setup ---
         port = self.get_parameter('port').value
         baudrate = self.get_parameter('baudrate').value
         self.radar = RD03D(port, baudrate, multi_mode=True)
         self.target_id = self.get_parameter('target_id').value
 
-        # --- Initialize PID for angular control only ---
+        # --- Kalman filter for angle smoothing ---
+        self.kalman = KalmanFilter(process_variance=1e-3, measurement_variance=1e-1)
+
+        # --- Angular PID controller ---
         self.pid_angle = PID(
             self.get_parameter('kp_ang').value,
             self.get_parameter('ki_ang').value,
@@ -187,13 +219,13 @@ class RD03DAngularTracker(Node):
             setpoint=self.get_parameter('angle_setpoint').value
         )
 
-        # --- Publishers ---
+        # --- Publisher ---
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
 
         # --- Timer ---
-        self.timer = self.create_timer(0.000001, self.loop)  # 20 Hz
+        self.timer = self.create_timer(0.05, self.loop)  # 20 Hz
 
-        self.get_logger().info("✅ RD03D Angular Tracker Node Started!")
+        self.get_logger().info("✅ RD03D Angular Tracker with Kalman Filter Started!")
 
     def loop(self):
         if not self.radar.update():
@@ -203,10 +235,11 @@ class RD03DAngularTracker(Node):
         if target is None:
             return
 
-        angle = target.angle
+        raw_angle = target.angle
+        filtered_angle = self.kalman.update(raw_angle)
 
-        # --- Compute angular correction only ---
-        angular_z = self.pid_angle.compute(angle)
+        # --- Compute angular correction ---
+        angular_z = self.pid_angle.compute(filtered_angle)
         angular_z = max(min(angular_z, 0.2), -0.2)
 
         twist = Twist()
@@ -214,10 +247,9 @@ class RD03DAngularTracker(Node):
         self.cmd_pub.publish(twist)
 
         self.get_logger().info(
-            f"Target {self.target_id}: angle={angle:.1f}°, cmd_ang={angular_z:.3f}"
+            f"Target {self.target_id}: raw_angle={raw_angle:.2f}°, "
+            f"filtered={filtered_angle:.2f}°, cmd_ang={angular_z:.3f}"
         )
-
-    # Marker publishing removed to avoid RViz dependency and reduce delays
 
     def destroy_node(self):
         try:
