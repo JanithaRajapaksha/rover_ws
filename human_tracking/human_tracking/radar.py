@@ -209,7 +209,7 @@ class RD03DAngularTracker(Node):
         self.target_id = self.get_parameter('target_id').value
 
         # --- Kalman filter for angle smoothing ---
-        self.kalman = KalmanFilter(process_variance=1e-3, measurement_variance=1e-1)
+        self.kalman = KalmanFilter(process_variance=1e-2, measurement_variance=1e-1)
 
         # --- Angular PID controller ---
         self.pid_angle = PID(
@@ -223,7 +223,7 @@ class RD03DAngularTracker(Node):
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
 
         # --- Timer ---
-        self.timer = self.create_timer(0.05, self.loop)  # 20 Hz
+        self.timer = self.create_timer(0.0001, self.loop)  # 10 kHz
 
         self.get_logger().info("✅ RD03D Angular Tracker with Kalman Filter Started!")
 
