@@ -198,7 +198,7 @@ class RD03DAngularTracker(Node):
         self.declare_parameter('angle_setpoint', 0.0)
         self.declare_parameter('kp_ang', 0.01)
         self.declare_parameter('ki_ang', 0.0)
-        self.declare_parameter('kd_ang', 0.0005)
+        self.declare_parameter('kd_ang', 0.001)
 
         # --- Radar setup ---
         port = self.get_parameter('port').value
@@ -207,7 +207,7 @@ class RD03DAngularTracker(Node):
         self.target_id = self.get_parameter('target_id').value
 
         # --- Kalman filter for angle smoothing ---
-        self.kalman = KalmanFilter(process_variance=5e-2, measurement_variance=1e-1)
+        self.kalman = KalmanFilter(process_variance=1e-4, measurement_variance=0.5)
 
         # --- Angular PID controller ---
         self.pid_angle = PID(
