@@ -224,11 +224,11 @@ class RD03DTracker(Node):
         angular_z = self.pid_angle.compute(angle)
 
         # Clamp speeds for safety
-        linear_x = max(min(linear_x, 0.6), -0.6)
+        linear_x = max(min(linear_x, 0.3), -0.3)
         angular_z = max(min(angular_z, 1.0), -1.0)
 
         twist = Twist()
-        twist.linear.x = linear_x
+        twist.linear.x = -linear_x
         twist.angular.z = angular_z
         self.cmd_pub.publish(twist)
 
