@@ -162,22 +162,18 @@ class PID:
         return output
 
 
-class RD03DTracker(Node):
+class RD03DAngularTracker(Node):
     def __init__(self):
-        super().__init__('rd03d_tracker')
+        super().__init__('rd03d_angular_tracker')
 
         # --- Parameters ---
         self.declare_parameter('port', '/dev/ttyAMA0')
         self.declare_parameter('baudrate', 256000)
         self.declare_parameter('target_id', 1)
-        self.declare_parameter('distance_setpoint', 800.0)  # mm
-        self.declare_parameter('angle_setpoint', 0.0)       # degrees
-        self.declare_parameter('kp_lin', 1)
-        self.declare_parameter('ki_lin', 0.0)
-        self.declare_parameter('kd_lin', 0)
-        self.declare_parameter('kp_ang', 1)
+        self.declare_parameter('angle_setpoint', 0.0)  # degrees
+        self.declare_parameter('kp_ang', 0.01)
         self.declare_parameter('ki_ang', 0.0)
-        self.declare_parameter('kd_ang', 0)
+        self.declare_parameter('kd_ang', 0.001)
 
         # --- Initialize radar ---
         port = self.get_parameter('port').value
@@ -185,13 +181,7 @@ class RD03DTracker(Node):
         self.radar = RD03D(port, baudrate, multi_mode=True)
         self.target_id = self.get_parameter('target_id').value
 
-        # --- Initialize PIDs ---
-        self.pid_distance = PID(
-            self.get_parameter('kp_lin').value,
-            self.get_parameter('ki_lin').value,
-            self.get_parameter('kd_lin').value,
-            setpoint=self.get_parameter('distance_setpoint').value
-        )
+        # --- Initialize PID for angular control only ---
         self.pid_angle = PID(
             self.get_parameter('kp_ang').value,
             self.get_parameter('ki_ang').value,
@@ -206,7 +196,7 @@ class RD03DTracker(Node):
         # --- Timer ---
         self.timer = self.create_timer(0.05, self.loop)  # 20 Hz
 
-        self.get_logger().info("✅ RD03D Tracker Node Started!")
+        self.get_logger().info("✅ RD03D Angular Tracker Node Started!")
 
     def loop(self):
         if not self.radar.update():
@@ -216,28 +206,20 @@ class RD03DTracker(Node):
         if target is None:
             return
 
-        distance = target.distance
         angle = target.angle
 
-        # --- Compute control commands ---
-        linear_x = self.pid_distance.compute(distance)
+        # --- Compute angular correction only ---
         angular_z = self.pid_angle.compute(angle)
-
-        # Clamp speeds for safety
-        linear_x = max(min(linear_x, 0.1), -0.1)
         angular_z = max(min(angular_z, 0.5), -0.5)
 
         twist = Twist()
-        twist.linear.x = -linear_x
         twist.angular.z = angular_z
         self.cmd_pub.publish(twist)
 
-        # --- Publish target marker in RViz ---
         self.publish_marker(target)
 
         self.get_logger().info(
-            f"Target {self.target_id}: dist={distance:.1f}mm, angle={angle:.1f}°, "
-            f"cmd=[{linear_x:.2f}, {angular_z:.2f}]"
+            f"Target {self.target_id}: angle={angle:.1f}°, cmd_ang={angular_z:.3f}"
         )
 
     def publish_marker(self, target):
@@ -248,16 +230,11 @@ class RD03DTracker(Node):
         marker.id = 0
         marker.type = Marker.SPHERE
         marker.action = Marker.ADD
-
-        # Convert radar mm coords to meters (RViz expects meters)
-        marker.pose.position.x = target.y / 1000.0  # radar y = forward
-        marker.pose.position.y = target.x / 1000.0  # radar x = sideways
+        marker.pose.position.x = target.y / 1000.0
+        marker.pose.position.y = target.x / 1000.0
         marker.pose.position.z = 0.1
-        marker.scale.x = 0.1
-        marker.scale.y = 0.1
-        marker.scale.z = 0.1
+        marker.scale.x = marker.scale.y = marker.scale.z = 0.1
         marker.color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=0.8)
-
         marker.lifetime.sec = 0
         self.marker_pub.publish(marker)
 
@@ -271,7 +248,7 @@ class RD03DTracker(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = RD03DTracker()
+    node = RD03DAngularTracker()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
