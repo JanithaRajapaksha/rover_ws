@@ -171,7 +171,7 @@ class RD03DAngularTracker(Node):
         self.declare_parameter('baudrate', 256000)
         self.declare_parameter('target_id', 1)
         self.declare_parameter('angle_setpoint', 0.0)  # degrees
-        self.declare_parameter('kp_ang', 0.01)
+        self.declare_parameter('kp_ang', 0.1)
         self.declare_parameter('ki_ang', 0.0)
         self.declare_parameter('kd_ang', 0.05)
 
