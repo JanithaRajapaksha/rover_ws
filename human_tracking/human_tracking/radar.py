@@ -191,7 +191,7 @@ class RD03DAngularTracker(Node):
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
 
         # --- Timer ---
-        self.timer = self.create_timer(0.05, self.loop)  # 20 Hz
+        self.timer = self.create_timer(0.001, self.loop)  # 20 Hz
 
         self.get_logger().info("✅ RD03D Angular Tracker Node Started!")
 
