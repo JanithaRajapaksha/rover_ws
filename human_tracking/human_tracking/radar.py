@@ -222,13 +222,13 @@ class RD03DAngularTracker(Node):
         self.has_target = False
 
         # --- Timers ---
-        self.radar_timer = self.create_timer(0.2, self.read_radar)  # read every 0.2s
-        self.control_timer = self.create_timer(0.01, self.control_loop)  # PID at 100Hz
+        self.radar_timer = self.create_timer(0.1, self.read_radar)  # read every 0.1s
+        self.control_timer = self.create_timer(0.0001, self.control_loop)  # PID at 100Hz
 
         self.get_logger().info("✅ RD03D Angular Tracker (Real-time PID) Started!")
 
     # --------------------------
-    #   Read Radar Every 0.2s
+    #   Read Radar Every 0.1s
     # --------------------------
     def read_radar(self):
         if not self.radar.update():
