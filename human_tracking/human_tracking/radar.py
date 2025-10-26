@@ -169,9 +169,9 @@ class RD03DAngularTracker(Node):
         self.declare_parameter('baudrate', 256000)
         self.declare_parameter('target_id', 1)
         self.declare_parameter('angle_setpoint', 0.0)  # degrees
-        self.declare_parameter('kp_ang', 1)
+        self.declare_parameter('kp_ang', 0.001)
         self.declare_parameter('ki_ang', 0.0)
-        self.declare_parameter('kd_ang', 0.1)
+        self.declare_parameter('kd_ang', 0.0005)
 
         # --- Initialize radar ---
         port = self.get_parameter('port').value
@@ -207,7 +207,7 @@ class RD03DAngularTracker(Node):
 
         # --- Compute angular correction only ---
         angular_z = self.pid_angle.compute(angle)
-        angular_z = max(min(angular_z, 0.5), -0.5)
+        angular_z = max(min(angular_z, 0.1), -0.1)
 
         twist = Twist()
         twist.angular.z = angular_z
