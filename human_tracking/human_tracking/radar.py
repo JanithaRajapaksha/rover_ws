@@ -187,8 +187,8 @@ class RD03DAngularTracker(Node):
             setpoint=self.get_parameter('angle_setpoint').value
         )
 
-    # --- Publishers ---
-    self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
+        # --- Publishers ---
+        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
 
         # --- Timer ---
         self.timer = self.create_timer(0.05, self.loop)  # 20 Hz
