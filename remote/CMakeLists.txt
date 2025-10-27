@@ -24,8 +24,9 @@ if(BUILD_TESTING)
 endif()
 
 install (PROGRAMS
-remote/remote_joystick.py
-DESTINATION lib/${PROJECT_NAME}
+  remote/remote_joystick.py
+  remote/full_remote.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()
