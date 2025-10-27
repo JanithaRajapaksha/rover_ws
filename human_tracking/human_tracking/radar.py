@@ -2,276 +2,221 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
+import math, time, serial
 
-import math
-import time
-
-import serial
-import time
-import math
-
+# =====================================================
+#  RD-03D Radar Interface  (same parser you used before)
+# =====================================================
 class Target:
     def __init__(self, x, y, speed, pixel_distance):
-        self.x = x                  # mm
-        self.y = y                  # mm
-        self.speed = speed          # cm/s
-        self.pixel_distance = pixel_distance  # mm
+        self.x = x
+        self.y = y
+        self.speed = speed
+        self.pixel_distance = pixel_distance
         self.distance = math.sqrt(x**2 + y**2)
         self.angle = math.degrees(math.atan2(x, y))
-    
-    def __str__(self):
-        return ('Target(x={}mm, y={}mm, speed={}cm/s, pixel_dist={}mm, '
-                'distance={:.1f}mm, angle={:.1f}°)').format(
-                self.x, self.y, self.speed, self.pixel_distance, self.distance, self.angle)
+
 
 class RD03D:
-    SINGLE_TARGET_CMD = bytes([0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x80, 0x00, 0x04, 0x03, 0x02, 0x01])
-    MULTI_TARGET_CMD  = bytes([0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x90, 0x00, 0x04, 0x03, 0x02, 0x01])
-    
-    def __init__(self, uart_port='/dev/ttyAMA0', baudrate=256000, multi_mode=True):
-        self.uart = serial.Serial(uart_port, baudrate, timeout=0.1)
-        self.targets = []  # Stores up to 3 targets
-        self.buffer = b''  # Buffer to handle split messages
+    SINGLE_TARGET_CMD = bytes([0xFD,0xFC,0xFB,0xFA,0x02,0x00,0x80,0x00,0x04,0x03,0x02,0x01])
+    MULTI_TARGET_CMD  = bytes([0xFD,0xFC,0xFB,0xFA,0x02,0x00,0x90,0x00,0x04,0x03,0x02,0x01])
+
+    def __init__(self, port="/dev/ttyAMA0", baudrate=256000, multi_mode=True):
+        self.uart = serial.Serial(port, baudrate, timeout=0.1)
+        self.targets = []
+        self.buffer = b''
         time.sleep(0.2)
         self.set_multi_mode(multi_mode)
-    
+
     def set_multi_mode(self, multi_mode=True):
-        """Set Radar mode: True=Multi-target, False=Single-target"""
         cmd = self.MULTI_TARGET_CMD if multi_mode else self.SINGLE_TARGET_CMD
         self.uart.write(cmd)
-        self.uart.flush()  # Force immediate send
+        self.uart.flush()
         time.sleep(0.2)
-        self.uart.reset_input_buffer()  # Clear buffer after switching
-        self.buffer = b''  # Clear internal buffer too
+        self.uart.reset_input_buffer()
+        self.buffer = b''
         self.multi_mode = multi_mode
-    
+
     @staticmethod
     def parse_signed16(high, low):
         raw = (high << 8) + low
-        sign = 1 if (raw & 0x8000) else -1
+        sign = -1 if (raw & 0x8000) else 1
         value = raw & 0x7FFF
         return sign * value
-    
+
     def _decode_frame(self, data):
         targets = []
-        if len(data) < 30 or data[0] != 0xAA or data[1] != 0xFF or data[-2] != 0x55 or data[-1] != 0xCC:
-            return targets  # invalid frame
-        
+        if len(data) < 30 or data[0]!=0xAA or data[1]!=0xFF or data[-2]!=0x55 or data[-1]!=0xCC:
+            return targets
         for i in range(3):
             base = 4 + i*8
             x = self.parse_signed16(data[base+1], data[base])
             y = self.parse_signed16(data[base+3], data[base+2])
             speed = self.parse_signed16(data[base+5], data[base+4])
-            pixel_dist = data[base+6] + (data[base+7] << 8)
-            targets.append(Target(x, y, speed, pixel_dist))
-        
+            pix = data[base+6] + (data[base+7]<<8)
+            targets.append(Target(x,y,speed,pix))
         return targets
-    
+
     def _find_complete_frame(self, data):
-        """Find a complete frame in the data buffer"""
-        # Look for frame start (0xAA 0xFF)
-        start_idx = -1
-        for i in range(len(data) - 1):
-            if data[i] == 0xAA and data[i+1] == 0xFF:
-                start_idx = i
-                break
-        
-        if start_idx == -1:
-            return None, data  # No frame start found, keep all data
-        
-        # Look for frame end (0x55 0xCC) after the start
-        for i in range(start_idx + 2, len(data) - 1):
-            if data[i] == 0x55 and data[i+1] == 0xCC:
-                # Found complete frame
-                frame = data[start_idx:i+2]
-                remaining = data[i+2:]
-                return frame, remaining
-        
-        # Frame start found but no end yet, keep data from start
-        return None, data[start_idx:]
-    
+        start = -1
+        for i in range(len(data)-1):
+            if data[i]==0xAA and data[i+1]==0xFF:
+                start=i; break
+        if start==-1: return None, data
+        for j in range(start+2, len(data)-1):
+            if data[j]==0x55 and data[j+1]==0xCC:
+                frame=data[start:j+2]; remain=data[j+2:]; return frame,remain
+        return None,data[start:]
+
     def update(self):
-        """Update internal targets list with latest data from radar."""
-        # Read all available data and add to buffer
-        if self.uart.in_waiting > 0:
-            new_data = self.uart.read(self.uart.in_waiting)
-            self.buffer += new_data
-        
-        # If buffer gets too large, keep only the most recent data
-        if len(self.buffer) > 300:  # ~10 frames worth
-            self.buffer = self.buffer[-150:]  # Keep last ~5 frames
-        
-        # Try to extract the MOST RECENT complete frame
-        latest_frame = None
-        temp_buffer = self.buffer
-        
+        if self.uart.in_waiting>0:
+            self.buffer += self.uart.read(self.uart.in_waiting)
+        if len(self.buffer)>300: self.buffer=self.buffer[-150:]
+        latest=None; tmp=self.buffer
         while True:
-            frame, temp_buffer = self._find_complete_frame(temp_buffer)
-            if frame:
-                latest_frame = frame  # Keep updating to get the latest
-            else:
-                break
-        
-        # Update buffer to remaining data after last complete frame
-        if latest_frame:
-            # Find where the latest frame ends in the original buffer
-            frame_end_pos = self.buffer.rfind(latest_frame) + len(latest_frame)
-            self.buffer = self.buffer[frame_end_pos:]
-            
-            decoded = self._decode_frame(latest_frame)
+            frame,tmp=self._find_complete_frame(tmp)
+            if frame: latest=frame
+            else: break
+        if latest:
+            end=self.buffer.rfind(latest)+len(latest)
+            self.buffer=self.buffer[end:]
+            decoded=self._decode_frame(latest)
             if decoded:
-                self.targets = decoded
-                return True  # Successful update
-        
-        return False  # No valid frame found
-    
-    def get_target(self, target_number=1):
-        """Get a target by number (1-based index)."""
-        if 1 <= target_number <= len(self.targets):
-            return self.targets[target_number - 1]
-        return None  # No such target
-    
+                self.targets=decoded
+                return True
+        return False
+
+    def get_target(self, n=1):
+        if 1<=n<=len(self.targets): return self.targets[n-1]
+        return None
+
     def close(self):
-        """Close the UART connection"""
-        if self.uart.is_open:
-            self.uart.close()
-# ======================
-#  Simple Kalman Filter
-# ======================
+        if self.uart.is_open: self.uart.close()
+
+
+# =====================================================
+#               Simple Kalman Filter
+# =====================================================
 class KalmanFilter:
-    def __init__(self, process_variance=1e-3, measurement_variance=1e-1):
-        self.x = 0.0      # estimated angle
-        self.P = 1.0      # estimation covariance
-        self.Q = process_variance
-        self.R = measurement_variance
-
+    def __init__(self, process_var=1e-3, meas_var=1e-1):
+        self.x = 0.0
+        self.P = 1.0
+        self.Q = process_var
+        self.R = meas_var
     def update(self, measurement):
-        # Prediction step
         self.P += self.Q
-
-        # Update step
         K = self.P / (self.P + self.R)
-        self.x += K * (measurement - self.x)
-        self.P *= (1 - K)
-
+        self.x += K*(measurement - self.x)
+        self.P *= (1-K)
         return self.x
 
 
-# ======================
-#        PID Class
-# ======================
-class PID:
-    def __init__(self, kp, ki, kd, setpoint=0.0):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.setpoint = setpoint
-        self.prev_error = 0.0
-        self.integral = 0.0
-        self.last_time = time.time()
-
-    def compute(self, measurement):
-        now = time.time()
-        dt = now - self.last_time if self.last_time else 0.01
-        error = self.setpoint - measurement
-        self.integral += error * dt
-        derivative = (error - self.prev_error) / dt if dt > 0 else 0.0
-
-        output = self.kp * error + self.ki * self.integral + self.kd * derivative
-
-        self.prev_error = error
-        self.last_time = now
-        return output
-
-
-# ======================
-#   Main Tracking Node
-# ======================
-class RD03DAngularTracker(Node):
+# =====================================================
+#             Human Following Node (Full Logic)
+# =====================================================
+class HumanFollower(Node):
     def __init__(self):
-        super().__init__('rd03d_angular_tracker')
+        super().__init__("human_follower_radar")
 
-        # --- Parameters ---
-        self.declare_parameter('port', '/dev/ttyAMA0')
-        self.declare_parameter('baudrate', 256000)
-        self.declare_parameter('target_id', 1)
-        self.declare_parameter('angle_setpoint', 0.0)
-        self.declare_parameter('kp_ang', 0.01)
-        self.declare_parameter('ki_ang', 0.0)
-        self.declare_parameter('kd_ang', 0.001)
+        # ---- parameters ----
+        self.declare_parameter("port", "/dev/ttyAMA0")
+        self.declare_parameter("baudrate", 256000)
+        self.declare_parameter("target_id", 1)
 
-        # --- Radar setup ---
-        port = self.get_parameter('port').value
-        baudrate = self.get_parameter('baudrate').value
-        self.radar = RD03D(port, baudrate, multi_mode=True)
-        self.target_id = self.get_parameter('target_id').value
+        self.FOLLOW_DIST = 500      # mm
+        self.STOP_DIST   = 300      # mm
+        self.ANGLE_TURN_THRESHOLD = 25
+        self.ANGLE_MATCH_TOLERANCE = 50
+        self.DIST_MATCH_TOLERANCE = 1500
 
-        # --- PID controller for angular correction ---
-        self.pid_angle = PID(
-            self.get_parameter('kp_ang').value,
-            self.get_parameter('ki_ang').value,
-            self.get_parameter('kd_ang').value,
-            setpoint=self.get_parameter('angle_setpoint').value
-        )
+        # ---- radar + filters ----
+        port = self.get_parameter("port").value
+        baud = self.get_parameter("baudrate").value
+        self.radar = RD03D(port, baud, multi_mode=True)
+        self.kf_dist  = KalmanFilter(10, 300)
+        self.kf_angle = KalmanFilter(1, 100)
 
-        # --- Publisher ---
-        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
+        # ---- publisher ----
+        self.cmd_pub = self.create_publisher(Twist, "/cmd_vel_tracking", 10)
 
-        # --- Internal state ---
-        self.latest_angle = 0.0
-        self.has_target = False
+        # ---- internal state ----
+        self.target_locked = False
+        self.locked_angle = 0.0
+        self.locked_dist = 0.0
+        self.last_seen = time.time()
 
-        # --- Timers ---
-        self.radar_timer = self.create_timer(0.1, self.read_radar)  # read every 0.1s
-        self.control_timer = self.create_timer(0.0001, self.control_loop)  # PID at 100Hz
+        # ---- timer ----
+        self.create_timer(0.1, self.loop)
+        self.get_logger().info("✅ Human Follower Radar Node Started (Kalman Enabled)")
 
-        self.get_logger().info("✅ RD03D Angular Tracker (Real-time PID) Started!")
-
-    # --------------------------
-    #   Read Radar Every 0.1s
-    # --------------------------
-    def read_radar(self):
+    # =====================================================
+    def loop(self):
         if not self.radar.update():
-            self.has_target = False
+            # check target lost timeout
+            if self.target_locked and (time.time() - self.last_seen > 5):
+                self.get_logger().info("Target Lost! Unlocking...")
+                self.target_locked = False
+                self.publish_stop()
             return
 
-        target = self.radar.get_target(self.target_id)
+        target = self.radar.get_target(self.get_parameter("target_id").value)
         if target is None:
-            self.has_target = False
             return
 
-        self.latest_angle = target.angle
-        self.has_target = True
+        self.last_seen = time.time()
 
-    # --------------------------
-    #   PID Control at 100 Hz
-    # --------------------------
-    def control_loop(self):
-        if not self.has_target:
-            return  # no valid reading yet
+        # apply kalman filters
+        f_dist = self.kf_dist.update(target.distance)
+        f_angle = self.kf_angle.update(target.angle)
 
-        angular_z = self.pid_angle.compute(self.latest_angle)
-        angular_z = max(min(angular_z, 0.2), -0.2)  # clamp angular speed
+        # target lock
+        if not self.target_locked:
+            self.locked_angle = f_angle
+            self.locked_dist = f_dist
+            self.target_locked = True
+            self.get_logger().info("Target Locked!")
 
-        twist = Twist()
-        twist.angular.z = angular_z
-        self.cmd_pub.publish(twist)
+        angle_diff = abs(f_angle - self.locked_angle)
+        dist_diff  = abs(f_dist - self.locked_dist)
 
-        self.get_logger().info(
-            f"Angle={self.latest_angle:.2f}°, cmd_ang={angular_z:.3f}"
-        )
+        if angle_diff < self.ANGLE_MATCH_TOLERANCE and dist_diff < self.DIST_MATCH_TOLERANCE:
+            # main control
+            cmd = Twist()
+            if abs(f_angle) > self.ANGLE_TURN_THRESHOLD:
+                cmd.angular.z = 0.2 if f_angle > 0 else -0.2
+                self.get_logger().info(f"Turning {'Right' if f_angle>0 else 'Left'} | Angle={f_angle:.1f}")
+            elif f_dist > self.FOLLOW_DIST:
+                cmd.linear.x = 0.2
+                self.get_logger().info(f"Moving Forward | Dist={f_dist:.1f}")
+            elif f_dist < self.STOP_DIST:
+                cmd.linear.x = -0.2
+                self.get_logger().info(f"Moving Backward | Dist={f_dist:.1f}")
+            else:
+                self.publish_stop()
+                return
+
+            self.cmd_pub.publish(cmd)
+        else:
+            self.get_logger().info("Ignoring secondary object...")
+            self.publish_stop()
+
+    # =====================================================
+    def publish_stop(self):
+        stop = Twist()
+        self.cmd_pub.publish(stop)
 
     def destroy_node(self):
         try:
             self.radar.close()
         except Exception as e:
-            self.get_logger().warn(f"Error closing radar: {e}")
+            self.get_logger().warn(f"Radar close error: {e}")
         super().destroy_node()
 
 
+# =====================================================
 def main(args=None):
     rclpy.init(args=args)
-    node = RD03DAngularTracker()
+    node = HumanFollower()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
@@ -281,5 +226,5 @@ def main(args=None):
         rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
