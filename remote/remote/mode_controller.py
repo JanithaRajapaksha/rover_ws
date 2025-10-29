@@ -19,18 +19,19 @@ class UDPJoystick(Node):
         self.sock.setblocking(False)
 
         # --- ROS2 Publishers ---
-        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
-        self.mode_pub = self.create_publisher(String, '/mode_cmd', 10)
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel_joy', 10)
+        self.mode_pub = self.create_publisher(String, '/rover_mode', 10)
 
         # --- Timer callback (50 Hz) ---
         self.timer = self.create_timer(0.02, self.receive_data)
 
-        # --- Speed scaling factors ---
-        self.linear_scale = 1.0
-        self.angular_scale = 0.5
+        # --- Speed scaling factors (default) ---
+        self.speed_level = 1  # 1, 2, or 3
+        self.speed_scales = {1: 0.3, 2: 0.6, 3: 1.0}
+        self.angular_scale = 0.6
 
-        # --- State memory ---
-        self.last_buttons = [0, 0, 0, 0]  # last states of b1–b4
+        # --- Mode state ---
+        self.current_mode = "manual"
 
         self.get_logger().info(f"Listening for joystick UDP on {self.UDP_IP}:{self.UDP_PORT}")
 
@@ -38,62 +39,57 @@ class UDPJoystick(Node):
         try:
             data, _ = self.sock.recvfrom(1024)
             decoded = data.decode().strip()
-            parts = decoded.split(',')
+            parts = [p for p in decoded.split(',') if p != '']
+            self.get_logger().debug(f"Received parts: {parts}")
 
-            # Expecting: x, y, main_btn, b1, b2, b3, b4
-            if len(parts) < 7:
+            if len(parts) < 6:
                 self.get_logger().warn(f"Invalid packet: {decoded}")
                 return
 
-            # Parse values
+            # Parse joystick data
             x = float(parts[0])
             y = float(parts[1])
-            main_btn = int(float(parts[2]))
-            b1, b2, b3, b4 = [int(float(v)) for v in parts[3:7]]
+            speed_btn = int(float(parts[2]))
+            cruise_btn = int(float(parts[3]))
+            follow_btn = int(float(parts[4]))
+            return_btn = int(float(parts[5]))
 
-            # --- Handle motion ---
-            twist = Twist()
-            if main_btn == 1:
-                twist.linear.x = x * self.linear_scale
-                twist.angular.z = y * self.angular_scale
+            # --- Handle speed level ---
+            if speed_btn == 1:
+                self.speed_level = (self.speed_level % 3) + 1  # cycle 1 → 2 → 3 → 1
+                self.get_logger().info(f"Speed level changed to {self.speed_level}")
+            
+            linear_scale = self.speed_scales[self.speed_level]
+
+            # --- Handle modes ---
+            new_mode = self.current_mode
+            if cruise_btn == 1:
+                new_mode = "cruise"
+            elif follow_btn == 1:
+                new_mode = "follow"
+            elif return_btn == 1:
+                new_mode = "return"
             else:
-                twist.linear.x = 0.0
-                twist.angular.z = 0.0
+                new_mode = "manual"
 
+            if new_mode != self.current_mode:
+                self.current_mode = new_mode
+                mode_msg = String()
+                mode_msg.data = self.current_mode
+                self.mode_pub.publish(mode_msg)
+                self.get_logger().info(f"Mode changed to: {self.current_mode}")
+
+            # --- Publish velocity ---
+            twist = Twist()
+            twist.linear.x = x * linear_scale
+            twist.angular.z = y * self.angular_scale
             self.cmd_vel_pub.publish(twist)
 
-            # --- Detect mode button changes ---
-            new_buttons = [b1, b2, b3, b4]
-            if new_buttons != self.last_buttons:
-                self.handle_mode_buttons(new_buttons)
-                self.last_buttons = new_buttons
-
         except BlockingIOError:
+            # No data yet
             pass
         except Exception as e:
             self.get_logger().error(f"Error parsing packet: {e}")
-
-    def handle_mode_buttons(self, buttons):
-        """Handles button presses and publishes mode commands."""
-        b1, b2, b3, b4 = buttons
-        msg = String()
-
-        if b1 == 1:
-            msg.data = "cruise_control"
-        elif b2 == 1:
-            msg.data = "speed_mode"
-        elif b3 == 1:
-            msg.data = "follow_me"
-        elif b4 == 1:
-            msg.data = "come_back"
-
-        else:
-            # No special mode button pressed
-            return
-
-        self.mode_pub.publish(msg)
-        self.get_logger().info(f"Mode command: {msg.data.upper()}")
-
 
 
 def main(args=None):

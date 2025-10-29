@@ -9,10 +9,13 @@ from rclpy.time import Time
 class ProximityBackOneSec(Node):
     def __init__(self):
         super().__init__('proximity_back_one_sec')
+
+
+
         
         # Parameters
         self.declare_parameter('stop_distance', 0.3)
-        self.declare_parameter('back_speed', 0.2)  # linear backward speed
+        self.declare_parameter('back_speed', 0.8)  # linear backward speed
         self.declare_parameter('back_duration', 3.0)  # seconds
         
         self.stop_distance = self.get_parameter('stop_distance').value
