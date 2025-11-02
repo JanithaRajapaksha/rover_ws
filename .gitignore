@@ -1,6 +1,7 @@
 /diffdrive_arduino
 /nav_robo_test
 /openslam_gmapping
+/slam_gmapping
 /serial
 /build
 /install
