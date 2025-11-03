@@ -120,16 +120,16 @@ class CmdMuxNode(Node):
                 self.cmd_pub.publish(zero)
         else:
             mp_fresh = (self.latest_mp_cmd is not None) and ((now - self.last_mp_time) <= self.mp_timeout)
-            # if mp_fresh:
-            self.cmd_pub.publish(self.latest_mp_cmd)
-            self.get_logger().debug('Publishing latest `cmd_vel_mp`')
-            # else:
-            #     # Safe fallback: stop robot
-            #     self.get_logger().warn('No valid `cmd_vel_mp` — publishing zero Twist')
-            #     zero = Twist()
-            #     zero.linear.x = 0.0
-            #     zero.angular.z = 0.2   # ✅ Stop turning
-            #     self.cmd_pub.publish(zero)
+            if mp_fresh:
+                self.cmd_pub.publish(self.latest_mp_cmd)
+                self.get_logger().debug('Publishing latest `cmd_vel_mp`')
+            else:
+                # Safe fallback: stop robot
+                self.get_logger().warn('No valid `cmd_vel_mp` — publishing zero Twist')
+                zero = Twist()
+                zero.linear.x = 0.0
+                zero.angular.z = 0.2   # ✅ Stop turning
+                self.cmd_pub.publish(zero)
 
 
 
