@@ -25,6 +25,7 @@ endif()
 
 install (PROGRAMS
   uwb/pose_pub.py
+  uwb/direction_tester.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

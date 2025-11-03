@@ -55,14 +55,14 @@ class CmdMuxNode(Node):
         self.obstacle = False
         self.last_tof_time = 0.0
         # timeouts (seconds) before inputs are considered stale
-        self.tof_timeout = 1.0  # seconds before ToF is considered stale
+        self.tof_timeout = 1.5  # seconds before ToF is considered stale
         # mp (motion planner) timeout: consider mp command stale after this
-        self.declare_parameter('mp_timeout', 1.0)
+        self.declare_parameter('mp_timeout', 2.0)
         self.mp_timeout = float(self.get_parameter('mp_timeout').value)
         self.last_mp_time = 0.0
 
         # periodic check: ensure we re-publish when needed and handle stale ToF
-        self.timer = self.create_timer(0.0001, self._periodic_check)
+        self.timer = self.create_timer(0.05, self._periodic_check)
 
         self.get_logger().info(f'cmd_mux_node started, obstacle_threshold_mm={self.threshold}')
 
@@ -120,16 +120,16 @@ class CmdMuxNode(Node):
                 self.cmd_pub.publish(zero)
         else:
             mp_fresh = (self.latest_mp_cmd is not None) and ((now - self.last_mp_time) <= self.mp_timeout)
-            if mp_fresh:
-                self.cmd_pub.publish(self.latest_mp_cmd)
-                self.get_logger().debug('Publishing latest `cmd_vel_mp`')
-            else:
-                # Safe fallback: stop robot
-                self.get_logger().warn('No valid `cmd_vel_mp` — publishing zero Twist')
-                zero = Twist()
-                zero.linear.x = 0.0
-                zero.angular.z = 0.2   # ✅ Stop turning
-                self.cmd_pub.publish(zero)
+            # if mp_fresh:
+            self.cmd_pub.publish(self.latest_mp_cmd)
+            self.get_logger().debug('Publishing latest `cmd_vel_mp`')
+            # else:
+            #     # Safe fallback: stop robot
+            #     self.get_logger().warn('No valid `cmd_vel_mp` — publishing zero Twist')
+            #     zero = Twist()
+            #     zero.linear.x = 0.0
+            #     zero.angular.z = 0.2   # ✅ Stop turning
+            #     self.cmd_pub.publish(zero)
 
 
 

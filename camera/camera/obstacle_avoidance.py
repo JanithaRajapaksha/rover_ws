@@ -40,8 +40,8 @@ class ToFPIDNode(Node):
         self.integral = 0.0
         self.last_time = time.time()
 
-        # Loop at 10 kHz
-        self.timer = self.create_timer(0.0001, self.control_loop)
+        # Loop at 200 Hz
+        self.timer = self.create_timer(0.005, self.control_loop)
 
     def control_loop(self):
         """Read sensor data and perform angular correction with PID."""

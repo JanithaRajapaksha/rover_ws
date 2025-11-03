@@ -11,11 +11,6 @@ twist_mux:
         timeout : 0.5
         priority: 20
 
-      obstacle_avoidance:
-        topic   : cmd_vel_tof
-        timeout : 0.5
-        priority: 30
-
       joystick:
         topic   : cmd_vel_joy
         timeout : 0.5
