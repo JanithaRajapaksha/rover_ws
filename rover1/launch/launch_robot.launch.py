@@ -75,14 +75,6 @@ def generate_launch_description():
         )
     )
 
-    odom_base_tf = Node(
-    package='tf2_ros',
-    executable='static_transform_publisher',
-    name='odom_base_tf',
-    arguments=['0','0','0','0','0','0','odom','base_link','50'],  # last arg = 50 Hz
-)
-
-
     # Code for delaying a node (I haven't tested how effective it is)
     # 
     # First add the below lines to imports
@@ -107,6 +99,5 @@ def generate_launch_description():
         twist_mux,
         delayed_controller_manager,
         delayed_diff_drive_spawner,
-        delayed_joint_broad_spawner,
-        odom_base_tf
+        delayed_joint_broad_spawner
     ])

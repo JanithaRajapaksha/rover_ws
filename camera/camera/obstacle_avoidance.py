@@ -62,7 +62,7 @@ class ToFPIDNode(Node):
                 # Extract relevant sensors
                 front_right = readings[0]
                 front_left = readings[2]
-                front_center = readings[6]
+                front_center = readings[3]
 
                 # Publish front 3 distances
                 dist_msg = Float32MultiArray()
