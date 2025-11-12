@@ -15,7 +15,7 @@ import time
 class CircleMovement(Node):
     def __init__(self):
         super().__init__('circle_movement')
-        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_scaled', 10)
+        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_nav', 10)
         self.marker_pub = self.create_publisher(Marker, '/target_marker', 10)
 
         # TF listener
@@ -433,6 +433,22 @@ class CircleMovement(Node):
             # Keep facing the marker using PD control
             angle_error = self.get_heading_error_to_marker()
             if angle_error is not None:
+                # --- Compute distance to marker ---
+                x_r, y_r, _ = self.get_pose()
+                if x_r is not None:
+                    dx = self.marker_world_x - x_r
+                    dy = self.marker_world_y - y_r
+                    distance_to_marker = math.sqrt(dx**2 + dy**2)
+
+                    # Log distance
+                    self.get_logger().info(f"📏 Distance to marker: {distance_to_marker:.2f} m")
+
+                    # --- Stop if closer than 1m ---
+                    if distance_to_marker < 1.0:
+                        self.cmd_pub.publish(Twist())  # stop robot
+                        self.get_logger().info("🛑 Reached marker (<1 m). Stopping robot.")
+                        return
+
                 # Dead zone threshold (radians)
                 dead_zone = math.radians(10)  # e.g., 10 degrees
 

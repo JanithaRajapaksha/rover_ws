@@ -95,6 +95,7 @@ class ToFPIDNode(Node):
                 # Build and publish a single Twist message per loop.
                 twist = Twist()
                 twist.angular.z = float(pid_output)
+                twist.linear.x = 0.025  # Default forward speed
 
                 # If the front-center sensor reports an obstacle closer than 500 mm,
                 # back off by setting a negative linear.x (units: m/s).

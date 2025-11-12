@@ -23,7 +23,7 @@ class UDPJoystick(Node):
         self.mode_pub = self.create_publisher(String, '/rover_mode', 10)
 
         # --- Timer callback (50 Hz) ---
-        self.timer = self.create_timer(0.1, self.receive_data)
+        self.timer = self.create_timer(0.02, self.receive_data)
 
         # --- Speed scaling factors (default) ---
         self.speed_level = 1  # 1, 2, or 3
@@ -32,8 +32,6 @@ class UDPJoystick(Node):
 
         # --- Mode state ---
         self.current_mode = "manual"
-
-        self.prev_speed_btn = 0
 
         self.get_logger().info(f"Listening for joystick UDP on {self.UDP_IP}:{self.UDP_PORT}")
 
@@ -56,11 +54,10 @@ class UDPJoystick(Node):
             return_btn = int(float(parts[5]))
 
             # --- Handle speed level ---
-            if speed_btn == 1 and self.prev_speed_btn == 0:
-                self.speed_level = (self.speed_level % 3) + 1
+            if speed_btn == 1:
+                self.speed_level = (self.speed_level % 3) + 1  # cycle 1 → 2 → 3 → 1
                 self.get_logger().info(f"Speed level changed to {self.speed_level}")
-            self.prev_speed_btn = speed_btn
-
+            
             linear_scale = self.speed_scales[self.speed_level]
 
             # --- Handle modes ---
@@ -81,13 +78,11 @@ class UDPJoystick(Node):
                 self.mode_pub.publish(mode_msg)
                 self.get_logger().info(f"Mode changed to: {self.current_mode}")
 
-            # --- Publish velocity only in manual or cruise mode ---
-            if self.current_mode in ["manual", "cruise"]:
-                twist = Twist()
-                twist.linear.x = x * linear_scale
-                twist.angular.z = y * self.angular_scale
-                self.cmd_vel_pub.publish(twist)
-
+            # --- Publish velocity ---
+            twist = Twist()
+            twist.linear.x = x * linear_scale
+            twist.angular.z = y * self.angular_scale
+            self.cmd_vel_pub.publish(twist)
 
         except BlockingIOError:
             # No data yet

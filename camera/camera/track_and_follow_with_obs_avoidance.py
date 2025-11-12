@@ -61,10 +61,21 @@ class CmdMuxNode(Node):
         self.mp_timeout = float(self.get_parameter('mp_timeout').value)
         self.last_mp_time = 0.0
 
+        self.mode_sub = self.create_subscription(
+            String, '/rover_mode', self.mode_callback, 10
+        )
+        self.current_mode = "manual"
+
+
         # periodic check: ensure we re-publish when needed and handle stale ToF
         self.timer = self.create_timer(0.05, self._periodic_check)
 
         self.get_logger().info(f'cmd_mux_node started, obstacle_threshold_mm={self.threshold}')
+
+    def mode_callback(self, msg: String):
+        self.current_mode = msg.data.strip().lower()
+        self.get_logger().info(f"Mode updated: {self.current_mode}")
+
 
     def tof_callback(self, msg: Float32MultiArray):
         try:
@@ -100,6 +111,10 @@ class CmdMuxNode(Node):
             self.cmd_pub.publish(msg)
 
     def _publish_selected(self):
+        # only operate when in follow mode
+        if self.current_mode != "follow":
+            # Optionally stop robot when not following
+            return
         # choose which command to forward based on obstacle flag and freshness
         now = time.time()
         if (now - self.last_tof_time) > self.tof_timeout:

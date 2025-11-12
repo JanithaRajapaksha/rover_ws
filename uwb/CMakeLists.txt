@@ -26,7 +26,13 @@ endif()
 install (PROGRAMS
   uwb/pose_pub.py
   uwb/direction_tester.py
+  uwb/come_to_me_mux.py
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
 )
 
 ament_package()
