@@ -41,11 +41,17 @@ def generate_launch_description():
 
     tof_node = Node(
         package='camera',
-        executable='obstacle_avoidance.py',
+        executable='obstacle_avoidace.py',
         name='tof_pid_node',
         output='screen',
         arguments=['--ros-args', '--log-level', log_level],
     )
+
+    camera_node = Node(
+        package='camera',
+        executable='obstacle_avoidance_camera.py',
+        name='camera_publisher_node',
+        output='screen',)
 
     mux_node = Node(
         package='camera',

@@ -55,7 +55,7 @@ class VisionPIDController(Node):
 
 
         # Publisher
-        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_tracking', 10)
+        self.cmd_pub = self.create_publisher(Twist, 'cmd_vel_camera', 10)
 
         # UDP Socket
         UDP_IP, UDP_PORT = "127.0.0.1", 5005
