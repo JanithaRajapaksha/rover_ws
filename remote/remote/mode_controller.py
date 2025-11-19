@@ -48,8 +48,8 @@ class UDPJoystick(Node):
                 return
 
             # Parse joystick data
-            x = float(parts[0])
-            y = float(parts[1])
+            x = float(parts[1])
+            y = float(parts[0])
             speed_btn = int(float(parts[2]))
             cruise_btn = int(float(parts[3]))
             follow_btn = int(float(parts[4]))
@@ -85,7 +85,7 @@ class UDPJoystick(Node):
             if self.current_mode in ["manual", "cruise"]:
                 twist = Twist()
                 twist.linear.x = x * linear_scale
-                twist.angular.z = y * self.angular_scale
+                twist.angular.z = y * -self.angular_scale
                 self.cmd_vel_pub.publish(twist)
 
 

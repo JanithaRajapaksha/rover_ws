@@ -27,6 +27,7 @@ class UWBReader(Node):
             self.get_logger().info(f"✅ Connected to UWB on {port} @ {baud} baud")
         except Exception as e:
             self.get_logger().error(f"❌ Failed to open serial port: {e}")
+            
             self.ser = None
 
         # --- Publisher ---
