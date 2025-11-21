@@ -13,7 +13,7 @@ class UWBReader(Node):
         super().__init__('uwb_reader')
 
         # --- Parameters ---
-        self.declare_parameter('port', '/dev/ttyUSB0')
+        self.declare_parameter('port', '/dev/ttyAMA0')
         self.declare_parameter('baudrate', 115200)
         self.declare_parameter('publish_topic', '/uwb_distance')
 

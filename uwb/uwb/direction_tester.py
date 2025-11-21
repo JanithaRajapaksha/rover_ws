@@ -7,7 +7,7 @@ from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from tf2_ros import Buffer, TransformListener
 from tf_transformations import euler_from_quaternion
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, String
 import math
 import time
 
@@ -77,7 +77,11 @@ class CircleMovement(Node):
         self.marker_world_y = 0.0
         self.marker_published = False
         self.marker_timer = self.create_timer(0.1, self.keep_publishing_marker)
-        
+        # Publisher to notify other nodes when state machine is DONE
+        self.status_pub = self.create_publisher(String, '/state_machine_status', 10)
+        self.done_msg_published = False
+        self.done_state_time = None
+
         self.timer = self.create_timer(0.05, self.timer_callback)
 
     def keep_publishing_marker(self):
@@ -102,6 +106,26 @@ class CircleMovement(Node):
             marker.color.b = 0.0
 
             self.marker_pub.publish(marker)
+
+    def publish_done(self):
+        """Schedule a one-shot DONE message to be published after 3s of stable DONE state.
+
+        This method does not immediately publish — it records the time when the node
+        first entered DONE and the periodic `timer_callback` will publish the message
+        only if the state remains `DONE` for at least 3 seconds. If the state leaves
+        `DONE` before 3s the scheduled publish is cancelled.
+        """
+        try:
+            # If already published, nothing to do
+            if getattr(self, 'done_msg_published', False):
+                return
+
+            # Record the time when DONE was first requested/scheduled
+            if getattr(self, 'done_state_time', None) is None:
+                self.done_state_time = time.time()
+                self.get_logger().info('Scheduled state_machine_status DONE to be published after 3s of stable DONE')
+        except Exception as e:
+            self.get_logger().error(f"Failed to schedule DONE message: {e}")
 
     def get_heading_error_to_marker(self):
         """
@@ -236,6 +260,24 @@ class CircleMovement(Node):
         if yaw is None:
             return
 
+        # If a DONE publish was scheduled, check whether 3s of stable DONE elapsed
+        if getattr(self, 'done_state_time', None) is not None and not getattr(self, 'done_msg_published', False):
+            # Only publish if we are still in the DONE state
+            if self.state == 'DONE':
+                if time.time() - self.done_state_time >= 3.0:
+                    try:
+                        msg = String()
+                        msg.data = 'DONE'
+                        self.status_pub.publish(msg)
+                        self.done_msg_published = True
+                        self.get_logger().info('🔔 Published state_machine_status: DONE (after 3s stable)')
+                    except Exception as e:
+                        self.get_logger().error(f'Failed to publish scheduled DONE message: {e}')
+            else:
+                # State left DONE before timeout; cancel scheduled publish
+                self.get_logger().info('State left DONE before 3s — cancelling scheduled DONE publish')
+                self.done_state_time = None
+
         # --- Manual yaw logging every 0.1s ---
         now = time.time()
         if not hasattr(self, "last_log_time"):
@@ -341,6 +383,7 @@ class CircleMovement(Node):
                 else:
                     self.state = 'DONE'
                     self.get_logger().info("No UWB data recorded. Stopping ✅")
+                    self.publish_done()
 
         elif self.state == 'TURN_TO_PERP':
             # --- Compute Error ---
@@ -428,6 +471,7 @@ class CircleMovement(Node):
 
 
                 self.state = 'DONE'
+                self.publish_done()
 
         elif self.state == 'DONE' and self.marker_published:
             # Keep facing the marker using PD control

@@ -23,7 +23,7 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     # Launch arguments (tweak defaults as needed)
-    uwb_port_arg = DeclareLaunchArgument('uwb_port', default_value='/dev/ttyUSB0', description='Serial port for UWB')
+    uwb_port_arg = DeclareLaunchArgument('uwb_port', default_value='/dev/ttyAMA0', description='Serial port for UWB')
     uwb_baud_arg = DeclareLaunchArgument('uwb_baud', default_value='115200', description='Baudrate for UWB')
     uwb_topic_arg = DeclareLaunchArgument('uwb_topic', default_value='/uwb_distance', description='UWB publish topic')
 
@@ -36,12 +36,7 @@ def generate_launch_description():
         package='uwb',
         executable='pose_pub.py',
         name='uwb_reader',
-        output='screen',
-        parameters=[{
-            'port': LaunchConfiguration('uwb_port'),
-            'baudrate': LaunchConfiguration('uwb_baud'),
-            'publish_topic': LaunchConfiguration('uwb_topic')
-        }]
+        output='screen'
     )
 
     direction_tester_node = Node(
@@ -55,12 +50,7 @@ def generate_launch_description():
         package='uwb',
         executable='come_to_me_mux.py',
         name='cmd_mux_node',
-        output='screen',
-        parameters=[{
-            'obstacle_threshold_mm': LaunchConfiguration('obstacle_threshold_mm'),
-            'max_angular_z': LaunchConfiguration('max_angular_z'),
-            'scaled_timeout': LaunchConfiguration('scaled_timeout')
-        }]
+        output='screen'
     )
 
     tof_pid_node = Node(
@@ -70,19 +60,27 @@ def generate_launch_description():
         output='screen'
     )
 
+    camere_node = Node(
+        package='camera',
+        executable='obstacle_avoidance_camera.py',
+        name='camera_pid_node',
+        output='screen'
+    )
+
     ld = LaunchDescription()
     # declare args
-    ld.add_action(uwb_port_arg)
-    ld.add_action(uwb_baud_arg)
-    ld.add_action(uwb_topic_arg)
-    ld.add_action(mux_threshold_arg)
-    ld.add_action(mux_max_angular_arg)
-    ld.add_action(scaled_timeout_arg)
+    # ld.add_action(uwb_port_arg)
+    # ld.add_action(uwb_baud_arg)
+    # ld.add_action(uwb_topic_arg)
+    # ld.add_action(mux_threshold_arg)
+    # ld.add_action(mux_max_angular_arg)
+    # ld.add_action(scaled_timeout_arg)
 
     # add nodes
     ld.add_action(pose_pub_node)
     ld.add_action(direction_tester_node)
     ld.add_action(cmd_mux_node)
     ld.add_action(tof_pid_node)
-
+    # ld.add_action(camere_node)
+    
     return ld

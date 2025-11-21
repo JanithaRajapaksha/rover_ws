@@ -28,6 +28,7 @@ install(PROGRAMS
   camera/obstacle_avoidance.py
   camera/obstacle_avoidance_camera.py
   camera/track_and_follow_with_obs_avoidance.py
+  camera/camera_pub.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

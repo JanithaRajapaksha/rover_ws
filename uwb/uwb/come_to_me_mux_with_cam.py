@@ -20,6 +20,7 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import String
 
 
 class CmdMuxNode(Node):
@@ -48,27 +49,23 @@ class CmdMuxNode(Node):
         self.last_scaled_time = 0.0
         self.tof_timeout = 1.5  # seconds
 
-        # Read parameter values into attributes so they exist when referenced
-        try:
-            self.threshold = float(self.get_parameter('obstacle_threshold_mm').value)
-        except Exception:
-            # fallback default
-            self.threshold = 500.0
+        self.latest_camera_cmd = None
+        self.last_camera_time = 0.0
+        self.camera_obstacle = False
+        self.camera_timeout = 1.0   # seconds
 
-        try:
-            self.max_angular_z = float(self.get_parameter('max_angular_z').value)
-        except Exception:
-            self.max_angular_z = 0.2
+        self.mode_sub = self.create_subscription(
+            String, '/rover_mode', self.mode_callback, 10
+        )
 
-        try:
-            self.scaled_timeout = float(self.get_parameter('scaled_timeout').value)
-        except Exception:
-            self.scaled_timeout = 2.0
+        self.cmd_camera_sub = self.create_subscription(
+            Twist,
+            'cmd_vel_camera',
+            self.cmd_camera_callback,
+            10
+        )
 
-        # self.mode_sub = self.create_subscription(
-        #     String, '/rover_mode', self.mode_callback, 10
-        # )
-        # self.current_mode = "manual"
+        self.current_mode = "manual"
 
         # Timer for periodic checks
         self.timer = self.create_timer(0.05, self._periodic_check)
@@ -93,9 +90,20 @@ class CmdMuxNode(Node):
         except Exception as e:
             self.get_logger().error(f'Error in tof_callback: {e}')
 
-    # def mode_callback(self, msg: String):
-    #     self.current_mode = msg.data.strip().lower()
-    #     self.get_logger().info(f"Mode updated: {self.current_mode}")
+    def cmd_camera_callback(self, msg: Twist):
+        self.latest_camera_cmd = msg
+        self.last_camera_time = time.time()
+
+        # Detect obstacle: camera sending zero linear vel = obstacle
+        if msg.linear.x <= 0.01:
+            self.camera_obstacle = True
+        else:
+            self.camera_obstacle = False
+
+
+    def mode_callback(self, msg: String):
+        self.current_mode = msg.data.strip().lower()
+        self.get_logger().info(f"Mode updated: {self.current_mode}")
 
     def cmd_tof_callback(self, msg: Twist):
         self.latest_tof_cmd = msg
@@ -108,12 +116,23 @@ class CmdMuxNode(Node):
         if not self.obstacle:
             self.cmd_pub.publish(msg)
 
-    # === SELECTION LOGIC ===
+    # def cmd_tof_callback(self, msg: Twist):
+    #     self.latest_tof_cmd = msg
+    #     if self.obstacle:
+    #         self.cmd_pub.publish(msg)
+
+    # def cmd_scaled_callback(self, msg: Twist):
+    #     self.latest_scaled_cmd = msg
+    #     self.last_scaled_time = time.time()
+    #     if not self.obstacle:
+    #         self.cmd_pub.publish(msg)
+
+        # === SELECTION LOGIC ===
     def _publish_selected(self):
-        # only operate when in follow mode
+        # only operate when in return mode
         # if self.current_mode != "return":
-        #     # Optionally stop robot when not following
         #     return
+
         now = time.time()
 
         # ToF timeout handling
@@ -122,21 +141,59 @@ class CmdMuxNode(Node):
                 self.get_logger().warn('ToF data stale → treating as CLEAR')
             self.obstacle = False
 
-        # Select appropriate command
+        # Camera timeout handling
+        if (now - self.last_camera_time) > self.camera_timeout:
+            self.camera_obstacle = False
+
+        # ------------------------------------------------------
+        # PRIORITY 1 → ToF OBSTACLE
+        # ------------------------------------------------------
         if self.obstacle:
             if self.latest_tof_cmd is not None:
                 self.cmd_pub.publish(self.latest_tof_cmd)
             else:
-                self.get_logger().warn('Obstacle detected but no `cmd_vel_tof` yet — stopping robot')
+                self.get_logger().warn('ToF obstacle but no cmd_vel_tof — stopping')
                 self._publish_zero()
+            return
+
+        # # ------------------------------------------------------
+        # # PRIORITY 2 → CAMERA OBSTACLE
+        # # ------------------------------------------------------
+        # if self.camera_obstacle:
+        #     if self.latest_camera_cmd is not None:
+        #         self.cmd_pub.publish(self.latest_camera_cmd)
+        #     else:
+        #         self.get_logger().warn('Camera obstacle but no cmd_vel_camera — stopping')
+        #         self._publish_zero()
+        #     return
+
+        # ------------------------------------------------------
+        # PRIORITY 3 → NAVIGATION / SCALED COMMAND
+        # ------------------------------------------------------
+        scaled_fresh = (
+            (self.latest_scaled_cmd is not None) and
+            ((now - self.last_scaled_time) <= self.scaled_timeout)
+        )
+
+        if scaled_fresh:
+            self.cmd_pub.publish(self.latest_scaled_cmd)
+            return
         else:
-            scaled_fresh = (self.latest_scaled_cmd is not None) and ((now - self.last_scaled_time) <= self.scaled_timeout)
-            if scaled_fresh:
-                self.cmd_pub.publish(self.latest_scaled_cmd)
-                self.get_logger().debug('Publishing latest `cmd_vel_scaled`')
-            else:
-                self.get_logger().warn('No valid `cmd_vel_scaled` — publishing zero Twist')
-                self._publish_zero()
+            self.get_logger().warn('No valid cmd_vel_scaled — stopping')
+            self._publish_zero()
+
+
+    def _publish_zero(self):
+        zero = Twist()
+        zero.linear.x = 0.0
+        zero.angular.z = 0.0
+        self.cmd_pub.publish(zero)
+
+    def _periodic_check(self):
+        try:
+            self._publish_selected()
+        except Exception as e:
+            self.get_logger().error(f'Error in periodic check: {e}')
 
     def _publish_zero(self):
         zero = Twist()

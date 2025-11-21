@@ -51,14 +51,17 @@ class VisionPIDController(Node):
         self.declare_parameter('kd_angular', 0.01)
         self.declare_parameter('stop_threshold', 0.25)  # stop if vertical < this
 
-        self.declare_parameter('disable_linear', False)  # default: False
+        self.declare_parameter('disable_linear', True)  # default: False
+        # deadzone for horizontal error (e.g. small joystick/camera jitter) — values inside
+        # [-horizontal_deadzone, horizontal_deadzone] are treated as zero
+        self.declare_parameter('horizontal_deadzone', 0.05)
 
 
         # Publisher
         self.cmd_pub = self.create_publisher(Twist, 'cmd_vel_camera', 10)
 
         # UDP Socket
-        UDP_IP, UDP_PORT = "127.0.0.1", 5005
+        UDP_IP, UDP_PORT = "127.0.0.1", 5006
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((UDP_IP, UDP_PORT))
         self.sock.setblocking(False)
@@ -90,8 +93,14 @@ class VisionPIDController(Node):
         self.declare_parameter('linear_smoothing_tc', 0.2)
         self.linear_smoothing_tc = max(0.001, float(self.get_parameter('linear_smoothing_tc').value))
 
+        # Read deadzone parameter into an attribute for quick access
+        try:
+            self.horizontal_deadzone = float(self.get_parameter('horizontal_deadzone').value)
+        except Exception:
+            self.horizontal_deadzone = 0.5
+
             # Timer: 50 Hz loop (20 ms) — good balance for real-time control
-        self.timer = self.create_timer(0.00001, self.control_loop)
+        self.timer = self.create_timer(0.05, self.control_loop)
 
         self.get_logger().info("🚀 Real-time Vision PID controller started (50 Hz)")
 
@@ -113,6 +122,10 @@ class VisionPIDController(Node):
         self.read_udp_data()
         vertical = float(self.last_data.get("vertical", 1.0))
         horizontal = float(self.last_data.get("horizontal", 0.0))
+
+        # Apply horizontal deadzone to avoid reacting to tiny jitter
+        if abs(horizontal) < getattr(self, 'horizontal_deadzone', 0.0):
+            horizontal = 0.0
 
         # Compute PID errors for angular control
         angular_error = -horizontal
@@ -144,10 +157,13 @@ class VisionPIDController(Node):
             self.last_linear_update = now_lin
             linear_vel = float(np.clip(self.current_linear_vel, 0.0, max_lin))
         else:
-            linear_vel = 0.0  # linear motion disabled
+            linear_vel = 0.1  # linear motion disabled
 
         # ----------------- Angular control -----------------
-        angular_vel = float(np.clip(angular_cmd, -max_ang, max_ang))
+        if horizontal == 0.0:
+            angular_vel = 0.0
+        else:
+            angular_vel = float(np.clip(angular_cmd, -max_ang, max_ang))
 
         # ----------------- Publish Twist -----------------
         twist = Twist()
