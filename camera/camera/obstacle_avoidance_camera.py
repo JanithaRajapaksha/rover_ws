@@ -97,7 +97,7 @@ class VisionPIDController(Node):
         try:
             self.horizontal_deadzone = float(self.get_parameter('horizontal_deadzone').value)
         except Exception:
-            self.horizontal_deadzone = 0.5
+            self.horizontal_deadzone = 0.15
 
             # Timer: 50 Hz loop (20 ms) — good balance for real-time control
         self.timer = self.create_timer(0.05, self.control_loop)

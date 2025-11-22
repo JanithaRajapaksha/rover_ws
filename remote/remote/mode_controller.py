@@ -32,10 +32,22 @@ class UDPJoystick(Node):
 
         # --- Mode state ---
         self.current_mode = "manual"
+        # UDP reset target for follow mode
+        self.reset_host = "127.0.0.1"
+        self.reset_port = 5007
 
         self.prev_speed_btn = 0
 
         self.get_logger().info(f"Listening for joystick UDP on {self.UDP_IP}:{self.UDP_PORT}")
+
+    def send_reset_udp(self, host: str, port: int):
+        """Send a UDP datagram with the ASCII payload 'reset' to (host, port)."""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.sendto(b"reset", (host, port))
+            self.get_logger().info(f"Sent UDP reset to {host}:{port}")
+        except Exception as e:
+            self.get_logger().error(f"send_reset_udp error: {e}")
 
     def receive_data(self):
         try:
@@ -52,8 +64,8 @@ class UDPJoystick(Node):
             y = float(parts[0])
             speed_btn = int(float(parts[2]))
             cruise_btn = int(float(parts[3]))
-            follow_btn = int(float(parts[4]))
-            return_btn = int(float(parts[5]))
+            follow_btn = int(float(parts[5]))
+            return_btn = int(float(parts[4]))
 
             # --- Handle speed level ---
             if speed_btn == 1 and self.prev_speed_btn == 0:
@@ -75,6 +87,13 @@ class UDPJoystick(Node):
                 new_mode = "manual"
 
             if new_mode != self.current_mode:
+                # If switching to follow mode, send a UDP "reset" message
+                if new_mode == "follow":
+                    try:
+                        self.send_reset_udp(self.reset_host, self.reset_port)
+                    except Exception as e:
+                        self.get_logger().error(f"Failed sending reset UDP: {e}")
+
                 self.current_mode = new_mode
                 mode_msg = String()
                 mode_msg.data = self.current_mode

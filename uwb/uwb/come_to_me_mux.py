@@ -180,6 +180,13 @@ class CmdMuxNode(Node):
 
     def cmd_tof_callback(self, msg: Twist):
         self.latest_tof_cmd = msg
+        # If UWB indicates we're too close, enforce stop instead of forwarding
+        if self.uwb_close:
+            if not self._uwb_warned:
+                self.get_logger().info(f'UWB close ({self.latest_uwb_distance:.2f} m) — suppressing ToF cmd and stopping')
+                self._uwb_warned = True
+            self._publish_zero()
+            return
         if self.obstacle:
             self.cmd_pub.publish(msg)
 
@@ -194,6 +201,13 @@ class CmdMuxNode(Node):
         # store latest camera cmd and timestamp
         self.latest_camera_cmd = msg
         self.last_camera_time = time.time()
+        # If UWB is close, suppress camera commands and stop
+        if self.uwb_close:
+            if not self._uwb_warned:
+                self.get_logger().info(f'UWB close ({self.latest_uwb_distance:.2f} m) — suppressing camera cmd and stopping')
+                self._uwb_warned = True
+            self._publish_zero()
+            return
         # if no obstacle currently, allow immediate pass-through (to reduce latency)
         if not self.obstacle:
             self.cmd_pub.publish(msg)
@@ -201,6 +215,14 @@ class CmdMuxNode(Node):
     def cmd_nav_callback(self, msg: Twist):
         self.latest_nav_cmd = msg
         self.last_nav_time = time.time()
+        # If UWB is close, suppress nav commands and stop
+        if self.uwb_close:
+            if not self._uwb_warned:
+                self.get_logger().info(f'UWB close ({self.latest_uwb_distance:.2f} m) — suppressing nav cmd and stopping')
+                self._uwb_warned = True
+            self._publish_zero()
+            return
+
         if not self.obstacle:
             self.cmd_pub.publish(msg)
 
@@ -211,6 +233,18 @@ class CmdMuxNode(Node):
         #     # Optionally stop robot when not following
         #     return
         now = time.time()
+
+        # UWB close check: if UWB reports close, always publish zero and return
+        if self.uwb_close:
+            if not self._uwb_warned:
+                try:
+                    dist = self.latest_uwb_distance if self.latest_uwb_distance is not None else float('nan')
+                except Exception:
+                    dist = float('nan')
+                self.get_logger().info(f'UWB close ({dist:.2f} m) — overriding and publishing zero')
+                self._uwb_warned = True
+            self._publish_zero()
+            return
 
         # ToF timeout handling
         if (now - self.last_tof_time) > self.tof_timeout:

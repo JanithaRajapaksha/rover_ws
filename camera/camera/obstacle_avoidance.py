@@ -101,10 +101,10 @@ class ToFPIDNode(Node):
                 # back off by setting a negative linear.x (units: m/s).
                 # Sensor readings are in mm, so compare directly and choose a
                 # reasonable back-off speed (e.g. -0.15 m/s).
-                if front_center < 500.0:
+                if front_center < 300.0:
                     backoff_speed = -0.1  # m/s (negative to move backwards)
                     twist.linear.x = backoff_speed
-                    self.get_logger().warn(f"Front center {front_center:.0f}mm < 500mm: backing off {backoff_speed} m/s")
+                    self.get_logger().warn(f"Front center {front_center:.0f}mm < 300mm: backing off {backoff_speed} m/s")
                 # else:
                 #     # No backing off requested; keep forward/backward speed zero.
                 #     twist.linear.x = 0.0

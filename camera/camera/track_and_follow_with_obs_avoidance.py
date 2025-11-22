@@ -56,7 +56,7 @@ class CmdMuxNode(Node):
         # timeouts (seconds) before inputs are considered stale
         self.tof_timeout = 1.5  # seconds before ToF is considered stale
         # mp (motion planner) timeout: consider mp command stale after this
-        self.declare_parameter('mp_timeout', 2.0)
+        self.declare_parameter('mp_timeout', 1.0)
         self.mp_timeout = float(self.get_parameter('mp_timeout').value)
         self.last_mp_time = 0.0
 
@@ -128,10 +128,10 @@ class CmdMuxNode(Node):
             else:
                 # Safe fallback: publish zero velocities so the robot stops
                 self.get_logger().warn('Obstacle detected but no `cmd_vel_tof` received yet — publishing zero Twist')
-                zero = Twist()
-                zero.linear.x = 0.0
-                zero.angular.z = 0.0
-                self.cmd_pub.publish(zero)
+                # zero = Twist()
+                # zero.linear.x = 0.0
+                # zero.angular.z = 0.0
+                # self.cmd_pub.publish(zero)
         else:
             mp_fresh = (self.latest_mp_cmd is not None) and ((now - self.last_mp_time) <= self.mp_timeout)
             if mp_fresh:
@@ -140,10 +140,10 @@ class CmdMuxNode(Node):
             else:
                 # Safe fallback: stop robot
                 self.get_logger().warn('No valid `cmd_vel_mp` — publishing zero Twist')
-                zero = Twist()
-                zero.linear.x = 0.0
-                zero.angular.z = 0.2   # ✅ Stop turning
-                self.cmd_pub.publish(zero)
+                turn = Twist()
+                turn.linear.x = 0.0
+                turn.angular.z = 0.3   # ✅ Stop turning
+                self.cmd_pub.publish(turn)
 
 
 
