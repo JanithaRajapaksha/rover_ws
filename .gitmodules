@@ -1,0 +1,6 @@
+[submodule "diffdrive_arduino"]
+	path = diffdrive_arduino
+	url = https://github.com/Buzzology/diffdrive_arduino.git
+[submodule "serial"]
+	path = serial
+	url = https://github.com/joshnewans/serial.git
