@@ -1,0 +1,20 @@
+[Unit]
+Description=Manage ROS2 main launch inside Docker container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/rover1
+# Start ROS2 launch inside container (does not start container)
+ExecStart=/bin/bash /home/rover1/ros_humble/rover_ws/start_rover.sh
+# Stop ROS2 launch inside container (does not stop container)
+ExecStop=/bin/bash /home/rover1/ros_humble/rover_ws/stop_rover.sh
+# Restart ROS2 launch inside container
+ExecReload=/bin/bash /home/rover1/ros_humble/rover_ws/restart_rover.sh
+RemainAfterExit=yes
+StandardOutput=append:/var/log/rover_launch.log
+StandardError=append:/var/log/rover_launch.log
+
+[Install]
+WantedBy=multi-user.target

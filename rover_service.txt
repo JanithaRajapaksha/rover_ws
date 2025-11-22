@@ -1,18 +1,1 @@
-[Unit]
-Description=ROS2 main launch inside Docker
-After=docker.service
-Requires=docker.service
 
-[Service]
-Type=simple
-WorkingDirectory=/home/rover1
-ExecStart=/bin/bash /home/rover1/start_rover.sh
-ExecStop=/usr/bin/docker stop main_rover
-ExecReload=/usr/bin/docker restart main_rover
-Restart=on-failure
-RestartSec=3
-StandardOutput=append:/var/log/rover_launch.log
-StandardError=append:/var/log/rover_launch.log
-
-[Install]
-WantedBy=multi-user.target
