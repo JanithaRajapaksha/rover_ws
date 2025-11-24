@@ -35,15 +35,15 @@ def generate_launch_description():
         output='screen'
     )
 
-	# mode_controller_node = Node(
-    #     package='remote',
-    #     executable='mode_controller.py',
-    #     name='mode_controller',
-    #     output='screen'
-    # )
+	mode_controller_node = Node(
+        package='remote',
+        executable='mode_controller.py',
+        name='mode_controller',
+        output='screen'
+    )
 
 	actions = []
-	# actions.append(mode_controller_node)
+	actions.append(mode_controller_node)
 	actions.append(tof_pid_node)
 	for lf in launch_files:
 		actions.append(LogInfo(msg=f"Including launch file: {lf}"))

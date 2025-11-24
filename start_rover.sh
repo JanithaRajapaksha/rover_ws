@@ -5,10 +5,10 @@
 # Only launches ROS2 if container was not running
 # ==============================================
 
-CONTAINER_NAME="main_rover"
+CONTAINER_NAME="ros_humble"
 WORKSPACE_PATH="/rover/rover_ws"
 PACKAGE_NAME="rover1"
-MAIN_LAUNCH="launch_robot.launch.py"
+MAIN_LAUNCH="full_robot.launch.py"
 
 # Step 1: Check if container is running
 if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
