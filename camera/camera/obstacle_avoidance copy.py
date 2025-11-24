@@ -33,7 +33,7 @@ class ToFPIDNode(Node):
         self.kd = 0.001       # derivative gain
         self.target_dist = 1000.0  # target distance in mm
 
-        self.max_angular_z = 0.1  # rad/s (maximum angular velocity)
+        self.max_angular_z = 0.2  # rad/s (maximum angular velocity)
 
         # PID state
         self.prev_error = 0.0
@@ -63,8 +63,6 @@ class ToFPIDNode(Node):
                 front_right = readings[2]
                 front_left = readings[1]
                 front_center = readings[0]
-                left = readings[3]
-                right = readings[4]
 
                 # Publish front 3 distances
                 dist_msg = Float32MultiArray()

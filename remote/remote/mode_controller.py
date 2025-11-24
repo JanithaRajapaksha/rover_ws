@@ -4,6 +4,8 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from std_msgs.msg import String
+import subprocess
+import time
 
 
 class UDPJoystick(Node):
@@ -26,9 +28,9 @@ class UDPJoystick(Node):
         self.timer = self.create_timer(0.1, self.receive_data)
 
         # --- Speed scaling factors (default) ---
-        self.speed_level = 1  # 1, 2, or 3
-        self.speed_scales = {1: 0.3, 2: 0.6, 3: 1.0}
-        self.angular_scale = 0.6
+        self.speed_level = 1  # 1, 2, 3, or 4
+        self.speed_scales = {1: 0.25, 2: 0.5, 3: 0.75, 4: 1.0}
+        self.angular_scale = 1.0
 
         # --- Mode state ---
         self.current_mode = "manual"
@@ -37,6 +39,7 @@ class UDPJoystick(Node):
         self.reset_port = 5007
 
         self.prev_speed_btn = 0
+        self.prev_return_btn = 0
 
         self.get_logger().info(f"Listening for joystick UDP on {self.UDP_IP}:{self.UDP_PORT}")
 
@@ -72,6 +75,16 @@ class UDPJoystick(Node):
                 self.speed_level = (self.speed_level % 3) + 1
                 self.get_logger().info(f"Speed level changed to {self.speed_level}")
             self.prev_speed_btn = speed_btn
+            # --- Handle return button edge (press) ---
+            if return_btn == 1 and self.prev_return_btn == 0:
+                # Trigger restart of main launch nodes and direction_tester
+                try:
+                    self.get_logger().info("Return pressed: restarting main launch nodes and direction_tester")
+                    self._restart_main_launch_nodes()
+                    self._restart_direction_tester()
+                except Exception as e:
+                    self.get_logger().error(f"Error restarting nodes: {e}")
+            self.prev_return_btn = return_btn
 
             linear_scale = self.speed_scales[self.speed_level]
 
@@ -106,13 +119,63 @@ class UDPJoystick(Node):
                 twist.linear.x = x * linear_scale
                 twist.angular.z = y * -self.angular_scale
                 self.cmd_vel_pub.publish(twist)
-
-
         except BlockingIOError:
             # No data yet
             pass
         except Exception as e:
             self.get_logger().error(f"Error parsing packet: {e}")
+    def _run_cmd(self, cmd_list):
+        """Run a command as subprocess without blocking the main thread and swallow output."""
+        try:
+            subprocess.Popen(cmd_list, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            self.get_logger().error(f"Failed to run {' '.join(cmd_list)}: {e}")
+
+    def _pkill_patterns(self, patterns):
+        for p in patterns:
+            try:
+                subprocess.run(["pkill", "-f", p], check=False)
+                self.get_logger().info(f"pkill -f {p} executed")
+            except Exception as e:
+                self.get_logger().error(f"pkill for {p} failed: {e}")
+
+    def _restart_main_launch_nodes(self):
+        """Kill a set of main launch-related processes and relaunch the main robot launch."""
+        # Patterns taken from existing restart script
+        patterns = [
+            "twist_mux",
+            "controller_manager",
+            "robot_state_publisher",
+        ]
+        # Kill processes
+        self._pkill_patterns(patterns)
+        # small pause to allow processes to terminate
+        time.sleep(0.5)
+
+        # Relaunch main robot launch (non-blocking)
+        try:
+            self.get_logger().info("Relaunching main robot launch (rover1 launch_robot.launch.py)")
+            self._run_cmd(["ros2", "launch", "rover1", "launch_robot.launch.py"])
+        except Exception as e:
+            self.get_logger().error(f"Failed to relaunch main launch: {e}")
+
+    def _restart_direction_tester(self):
+        """Kill the direction_tester node and relaunch its come_to_me_all launch."""
+        try:
+            subprocess.run(["pkill", "-f", "direction_tester"], check=False)
+            self.get_logger().info("pkill -f direction_tester executed")
+        except Exception as e:
+            self.get_logger().error(f"pkill direction_tester failed: {e}")
+
+        time.sleep(0.2)
+        try:
+            self.get_logger().info("Relaunching direction_tester via uwb/come_to_me_all.launch.py")
+            self._run_cmd(["ros2", "run", "uwb", "direction_tester.py"])
+        except Exception as e:
+            self.get_logger().error(f"Failed to relaunch direction_tester: {e}")
+
+
+        
 
 
 def main(args=None):
