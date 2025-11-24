@@ -106,6 +106,18 @@ class UDPJoystick(Node):
                         self.send_reset_udp(self.reset_host, self.reset_port)
                     except Exception as e:
                         self.get_logger().error(f"Failed sending reset UDP: {e}")
+                    # small pause to allow the camera/reset listener to process
+                    try:
+                        time.sleep(0.1)
+                    except Exception:
+                        pass
+
+                    # Launch the camera-based track-and-follow stack (non-blocking)
+                    try:
+                        self.get_logger().info("Launching camera/track_and_follow_all.launch.py for follow mode")
+                        self._run_cmd(["ros2", "launch", "camera", "track_and_follow_all.launch.py"])
+                    except Exception as e:
+                        self.get_logger().error(f"Failed launching track_and_follow_all: {e}")
 
                 self.current_mode = new_mode
                 mode_msg = String()
@@ -160,22 +172,73 @@ class UDPJoystick(Node):
             self.get_logger().error(f"Failed to relaunch main launch: {e}")
 
     def _restart_direction_tester(self):
-        """Kill the direction_tester node and relaunch its come_to_me_all launch."""
-        try:
-            subprocess.run(["pkill", "-f", "direction_tester"], check=False)
-            self.get_logger().info("pkill -f direction_tester executed")
-        except Exception as e:
-            self.get_logger().error(f"pkill direction_tester failed: {e}")
-
-        time.sleep(0.2)
-        try:
-            self.get_logger().info("Relaunching direction_tester via uwb/come_to_me_all.launch.py")
-            self._run_cmd(["ros2", "run", "uwb", "direction_tester.py"])
-        except Exception as e:
-            self.get_logger().error(f"Failed to relaunch direction_tester: {e}")
-
-
+        """Kill direction_tester and come_to_me_mux, then restart direction_tester."""
         
+        # ---- Kill both processes ----
+        processes_to_kill = [
+            "direction_tester",
+            "come_to_me_mux",
+            "pose_pub",
+            "vision_pid_controller"
+        ]
+
+        for proc in processes_to_kill:
+            try:
+                subprocess.run(["pkill", "-f", proc], check=False)
+                self.get_logger().info(f"pkill -f {proc} executed")
+            except Exception as e:
+                self.get_logger().error(f"Failed to pkill {proc}: {e}")
+
+        # Small delay
+        time.sleep(0.3)
+
+        # Additionally ensure any person-tracking / follow nodes are stopped when
+        # entering come-to-me mode (these are launched by camera/track_and_follow_all.launch.py)
+        tracking_patterns = [
+            "track_and_follow.py",
+            # "obstacle_avoidance.py",
+            "obstacle_avoidance_camera.py",
+            "track_and_follow_with_obs_avoidance.py",
+            # also try matching node/process name fragments
+            "person_tracker_pid_node",
+            # "tof_pid_node",
+            # "camera_publisher_node",
+            "vision_pid_controller",
+            "cmd_mux_node_follow",
+        ]
+
+        for p in tracking_patterns:
+            try:
+                subprocess.run(["pkill", "-f", p], check=False)
+                self.get_logger().info(f"pkill -f {p} executed")
+            except Exception as e:
+                self.get_logger().error(f"Failed to pkill tracking pattern {p}: {e}")
+
+        # # ---- Restart nodes ----
+        # try:
+        #     self.get_logger().info("Relaunching pose_pub...")
+        #     self._run_cmd(["ros2", "run", "uwb", "pose_pub.py"])
+        # except Exception as e:
+        #     self.get_logger().error(f"Failed to relaunch direction_tester: {e}")
+
+        # try:
+        #     self.get_logger().info("Relaunching come_to_me_mux...")
+        #     self._run_cmd(["ros2", "run", "uwb", "come_to_me_mux.py"])
+        # except Exception as e:
+        #     self.get_logger().error(f"Failed to relaunch come_to_me_mux: {e}")
+
+        try:
+            self.get_logger().info("Relaunching direction_tester...")
+            self._run_cmd(["ros2", "launch", "uwb", "come_to_me_all.launch.py"])
+        except Exception as e:
+            self.get_logger().error(f"Failed to relaunch come_to_me: {e}")
+
+        # try:
+        #     self.get_logger().info("Relaunching come_to_me_mux...")
+        #     self._run_cmd(["ros2", "run", "uwb", "come_to_me_mux.py"])
+        # except Exception as e:
+        #     self.get_logger().error(f"Failed to relaunch come_to_me_mux: {e}")
+       
 
 
 def main(args=None):

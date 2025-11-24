@@ -35,7 +35,7 @@ def generate_launch_description():
     pose_pub_node = Node(
         package='uwb',
         executable='pose_pub.py',
-        name='uwb_reader',
+        name='pose_pub',
         output='screen'
     )
 
@@ -49,7 +49,7 @@ def generate_launch_description():
     cmd_mux_node = Node(
         package='uwb',
         executable='come_to_me_mux.py',
-        name='cmd_mux_node',
+        name='come_to_me_mux',
         output='screen'
     )
 
@@ -60,10 +60,10 @@ def generate_launch_description():
         output='screen'
     )
 
-    camere_node = Node(
+    camera_node = Node(
         package='camera',
         executable='obstacle_avoidance_camera.py',
-        name='camera_pid_node',
+        name='vision_pid_controller',
         output='screen'
     )
 
@@ -80,7 +80,7 @@ def generate_launch_description():
     ld.add_action(pose_pub_node)
     ld.add_action(direction_tester_node)
     ld.add_action(cmd_mux_node)
-    ld.add_action(tof_pid_node)
-    # ld.add_action(camere_node)
+    # ld.add_action(tof_pid_node)
+    ld.add_action(camera_node)
     
     return ld

@@ -14,6 +14,7 @@ from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, LogInfo
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -24,10 +25,26 @@ def generate_launch_description():
 	launch_files = [
 		os.path.join(pkg_rover1, 'launch', 'launch_robot.launch.py'),
 		os.path.join(pkg_camera, 'launch', 'track_and_follow_all.launch.py'),
-		os.path.join(pkg_uwb, 'launch', 'come_to_me_all.launch.py'),
+		# os.path.join(pkg_uwb, 'launch', 'come_to_me_all.launch.py'),
 	]
 
+	tof_pid_node = Node(
+        package='camera',
+        executable='obstacle_avoidance.py',
+        name='tof_pid_node',
+        output='screen'
+    )
+
+	# mode_controller_node = Node(
+    #     package='remote',
+    #     executable='mode_controller.py',
+    #     name='mode_controller',
+    #     output='screen'
+    # )
+
 	actions = []
+	# actions.append(mode_controller_node)
+	actions.append(tof_pid_node)
 	for lf in launch_files:
 		actions.append(LogInfo(msg=f"Including launch file: {lf}"))
 		actions.append(IncludeLaunchDescription(PythonLaunchDescriptionSource(lf)))

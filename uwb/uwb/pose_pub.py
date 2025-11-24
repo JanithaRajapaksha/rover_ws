@@ -10,7 +10,7 @@ from std_msgs.msg import Float32
 
 class UWBReader(Node):
     def __init__(self):
-        super().__init__('uwb_reader')
+        super().__init__('pose_pub')
 
         # --- Parameters ---
         self.declare_parameter('port', '/dev/ttyAMA0')

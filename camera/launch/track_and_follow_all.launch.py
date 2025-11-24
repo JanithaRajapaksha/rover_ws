@@ -56,7 +56,7 @@ def generate_launch_description():
     mux_node = Node(
         package='camera',
         executable='track_and_follow_with_obs_avoidance.py',
-        name='cmd_mux_node',
+        name='cmd_mux_node_follow',
         output='screen',
         parameters=[{'obstacle_threshold_mm': obstacle_threshold}],
         arguments=['--ros-args', '--log-level', log_level],
@@ -66,7 +66,7 @@ def generate_launch_description():
     ld.add_action(declare_threshold_arg)
     ld.add_action(declare_log_arg)
     ld.add_action(tracker_node)
-    ld.add_action(tof_node)
+    # ld.add_action(tof_node)
     ld.add_action(mux_node)
 
     return ld

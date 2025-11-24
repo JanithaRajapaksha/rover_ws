@@ -24,7 +24,7 @@ from std_msgs.msg import Float32MultiArray, String, Float32
 
 class CmdMuxNode(Node):
     def __init__(self):
-        super().__init__('cmd_mux_node')
+        super().__init__('come_to_me_mux')
 
         # Parameters
         self.declare_parameter('obstacle_threshold_mm', 500.0)

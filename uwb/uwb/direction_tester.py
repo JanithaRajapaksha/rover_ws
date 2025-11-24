@@ -293,7 +293,7 @@ class CircleMovement(Node):
 
         # ---- STATE MACHINE ----
         if self.state == 'WAIT_BEFORE_FORWARD':
-            if time.time() - self.wait_start_time < 2.0:
+            if time.time() - self.wait_start_time < 5.0:
                 self.cmd_pub.publish(Twist())  # stay still
                 return
             else:
