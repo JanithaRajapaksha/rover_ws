@@ -326,7 +326,7 @@ class CircleMovement(Node):
 
         elif self.state == 'MAKE_CIRCLE':
             twist.linear.x = 0.1
-            twist.angular.z = 0.2
+            twist.angular.z = 0.11
             self.cmd_pub.publish(twist)
 
             yaw_diff = self.normalize_angle(yaw - self.circle_start_yaw)

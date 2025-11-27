@@ -81,6 +81,6 @@ def generate_launch_description():
     ld.add_action(direction_tester_node)
     ld.add_action(cmd_mux_node)
     # ld.add_action(tof_pid_node)
-    ld.add_action(camera_node)
+    # ld.add_action(camera_node)
     
     return ld

@@ -33,7 +33,7 @@ class ToFPIDNode(Node):
         self.kd = 0.001       # derivative gain
         self.target_dist = 1000.0  # target distance in mm
 
-        self.max_angular_z = 0.1  # rad/s (maximum angular velocity)
+        self.max_angular_z = 0.3  # rad/s (maximum angular velocity)
 
         # PID state
         self.prev_error = 0.0
