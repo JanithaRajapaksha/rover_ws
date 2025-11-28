@@ -41,6 +41,11 @@ class UDPJoystick(Node):
         self.prev_speed_btn = 0
         self.prev_return_btn = 0
 
+        self.last_x = 0.0
+        self.last_y = 0.0
+        self.last_twist_time = time.time()
+
+
         self.get_logger().info(f"Listening for joystick UDP on {self.UDP_IP}:{self.UDP_PORT}")
 
     def send_reset_udp(self, host: str, port: int):
@@ -54,88 +59,89 @@ class UDPJoystick(Node):
 
     def receive_data(self):
         try:
-            data, _ = self.sock.recvfrom(1024)
-            decoded = data.decode().strip()
-            parts = [p for p in decoded.split(',') if p != '']
+            # -----------------------
+            # Try reading new UDP data
+            # -----------------------
+            try:
+                data, _ = self.sock.recvfrom(1024)
+                decoded = data.decode().strip()
+                parts = [p for p in decoded.split(',') if p != '']
 
-            if len(parts) < 6:
-                self.get_logger().warn(f"Invalid packet: {decoded}")
-                return
+                if len(parts) < 6:
+                    self.get_logger().warn(f"Invalid packet: {decoded}")
+                    return
 
-            # Parse joystick data
-            x = float(parts[1])
-            y = float(parts[0])
-            speed_btn = int(float(parts[2]))
-            cruise_btn = int(float(parts[3]))
-            follow_btn = int(float(parts[5]))
-            return_btn = int(float(parts[4]))
+                # Parse joystick data
+                x = float(parts[1])
+                y = float(parts[0])
+                speed_btn = int(float(parts[2]))
+                cruise_btn = int(float(parts[3]))
+                follow_btn = int(float(parts[5]))
+                return_btn = int(float(parts[4]))
 
-            # --- Handle speed level ---
-            if speed_btn == 1 and self.prev_speed_btn == 0:
-                self.speed_level = (self.speed_level % 3) + 1
-                self.get_logger().info(f"Speed level changed to {self.speed_level}")
-            self.prev_speed_btn = speed_btn
-            # --- Handle return button edge (press) ---
-            if return_btn == 1 and self.prev_return_btn == 0:
-                # Trigger restart of main launch nodes and direction_tester
-                try:
-                    self.get_logger().info("Return pressed: restarting main launch nodes and direction_tester")
-                    self._restart_main_launch_nodes()
-                    self._restart_direction_tester()
-                except Exception as e:
-                    self.get_logger().error(f"Error restarting nodes: {e}")
-            self.prev_return_btn = return_btn
+                # Save latest joystick values
+                self.last_x = x
+                self.last_y = y
+                self.last_twist_time = time.time()
 
-            linear_scale = self.speed_scales[self.speed_level]
+                # --- Handle speed level ---
+                if speed_btn == 1 and self.prev_speed_btn == 0:
+                    self.speed_level = (self.speed_level % 3) + 1
+                    self.get_logger().info(f"Speed level changed to {self.speed_level}")
+                self.prev_speed_btn = speed_btn
 
-            # --- Handle modes ---
-            new_mode = self.current_mode
-            if cruise_btn == 1:
-                new_mode = "cruise"
-            elif follow_btn == 1:
-                new_mode = "follow"
-            elif return_btn == 1:
-                new_mode = "return"
-            else:
+                # --- Handle return button ---
+                if return_btn == 1 and self.prev_return_btn == 0:
+                    try:
+                        self.get_logger().info("Return pressed: restarting main launch nodes and direction_tester")
+                        self._restart_main_launch_nodes()
+                        self._restart_direction_tester()
+                    except Exception as e:
+                        self.get_logger().error(f"Error restarting nodes: {e}")
+                self.prev_return_btn = return_btn
+
+                # Mode switching
                 new_mode = "manual"
+                if cruise_btn == 1:
+                    new_mode = "cruise"
+                elif follow_btn == 1:
+                    new_mode = "follow"
+                elif return_btn == 1:
+                    new_mode = "return"
 
-            if new_mode != self.current_mode:
-                # If switching to follow mode, send a UDP "reset" message
-                if new_mode == "follow":
-                    try:
-                        self.send_reset_udp(self.reset_host, self.reset_port)
-                    except Exception as e:
-                        self.get_logger().error(f"Failed sending reset UDP: {e}")
-                    # small pause to allow the camera/reset listener to process
-                    try:
-                        time.sleep(0.1)
-                    except Exception:
-                        pass
+                if new_mode != self.current_mode:
+                    if new_mode == "follow":
+                        try:
+                            self.send_reset_udp(self.reset_host, self.reset_port)
+                            time.sleep(0.1)
+                            self.get_logger().info("Launching track_and_follow_all.launch.py for follow mode")
+                            self._run_cmd(["ros2", "launch", "camera", "track_and_follow_all.launch.py"])
+                        except Exception as e:
+                            self.get_logger().error(f"Failed to enter follow mode: {e}")
 
-                    # Launch the camera-based track-and-follow stack (non-blocking)
-                    try:
-                        self.get_logger().info("Launching camera/track_and_follow_all.launch.py for follow mode")
-                        self._run_cmd(["ros2", "launch", "camera", "track_and_follow_all.launch.py"])
-                    except Exception as e:
-                        self.get_logger().error(f"Failed launching track_and_follow_all: {e}")
+                    self.current_mode = new_mode
+                    msg = String()
+                    msg.data = self.current_mode
+                    self.mode_pub.publish(msg)
+                    self.get_logger().info(f"Mode changed to: {self.current_mode}")
 
-                self.current_mode = new_mode
-                mode_msg = String()
-                mode_msg.data = self.current_mode
-                self.mode_pub.publish(mode_msg)
-                self.get_logger().info(f"Mode changed to: {self.current_mode}")
+            except BlockingIOError:
+                # No new UDP packet → keep using old joystick values
+                pass
 
-            # --- Publish velocity only in manual or cruise mode ---
+            # -----------------------------------------
+            # CONTINUOUS PUBLISHING (even if no new UDP)
+            # -----------------------------------------
             if self.current_mode in ["manual", "cruise"]:
+                linear_scale = self.speed_scales[self.speed_level]
                 twist = Twist()
-                twist.linear.x = x * linear_scale
-                twist.angular.z = y * -self.angular_scale
+                twist.linear.x = self.last_x * linear_scale
+                twist.angular.z = self.last_y * -self.angular_scale
                 self.cmd_vel_pub.publish(twist)
-        except BlockingIOError:
-            # No data yet
-            pass
+
         except Exception as e:
             self.get_logger().error(f"Error parsing packet: {e}")
+
     def _run_cmd(self, cmd_list):
         """Run a command as subprocess without blocking the main thread and swallow output."""
         try:

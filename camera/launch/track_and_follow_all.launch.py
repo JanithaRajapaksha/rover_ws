@@ -66,7 +66,7 @@ def generate_launch_description():
     ld.add_action(declare_threshold_arg)
     ld.add_action(declare_log_arg)
     ld.add_action(tracker_node)
-    # ld.add_action(tof_node)
+    ld.add_action(tof_node)
     ld.add_action(mux_node)
 
     return ld

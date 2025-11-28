@@ -28,12 +28,12 @@ def generate_launch_description():
 		# os.path.join(pkg_uwb, 'launch', 'come_to_me_all.launch.py'),
 	]
 
-	tof_pid_node = Node(
-        package='camera',
-        executable='obstacle_avoidance.py',
-        name='tof_pid_node',
-        output='screen'
-    )
+	# tof_pid_node = Node(
+    #     package='camera',
+    #     executable='obstacle_avoidance.py',
+    #     name='tof_pid_node',
+    #     output='screen'
+    # )
 
 	mode_controller_node = Node(
         package='remote',
@@ -44,7 +44,7 @@ def generate_launch_description():
 
 	actions = []
 	actions.append(mode_controller_node)
-	actions.append(tof_pid_node)
+	# actions.append(tof_pid_node)
 	for lf in launch_files:
 		actions.append(LogInfo(msg=f"Including launch file: {lf}"))
 		actions.append(IncludeLaunchDescription(PythonLaunchDescriptionSource(lf)))
