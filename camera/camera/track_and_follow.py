@@ -20,13 +20,13 @@ class PersonTrackerPIDNode(Node):
         self.declare_parameter('kp_ang', 0.3)
         self.declare_parameter('ki_ang', 0.0)
         self.declare_parameter('kd_ang', 0.01)
-        self.declare_parameter('max_ang_vel', 0.3)
+        self.declare_parameter('max_ang_vel', 0.2)
 
         # Linear PID (for distance control)
         self.declare_parameter('kp_lin', 0.5)
         self.declare_parameter('ki_lin', 0.0)
         self.declare_parameter('kd_lin', 0.02)
-        self.declare_parameter('max_lin_vel', 0.6)
+        self.declare_parameter('max_lin_vel', 0.1)
 
         # Target values
         self.declare_parameter('target_x', 0.0)     # center normalized X

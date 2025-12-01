@@ -33,7 +33,7 @@ class ToFPIDNode(Node):
         self.kd = 0.001       # derivative gain
         self.target_dist = 1000.0  # target distance in mm
 
-        self.max_angular_z = 0.3  # rad/s (maximum angular velocity)
+        self.max_angular_z = 0.075  # rad/s (maximum angular velocity)
 
         # PID state
         self.prev_error = 0.0
@@ -97,14 +97,14 @@ class ToFPIDNode(Node):
                 # Build and publish a single Twist message per loop.
                 twist = Twist()
                 twist.angular.z = float(pid_output)
-                twist.linear.x = 0.025  # Default forward speed
+                twist.linear.x = 0.005  # Default forward speed
 
                 # If the front-center sensor reports an obstacle closer than 500 mm,
                 # back off by setting a negative linear.x (units: m/s).
                 # Sensor readings are in mm, so compare directly and choose a
                 # reasonable back-off speed (e.g. -0.15 m/s).
                 if front_center < 300.0:
-                    backoff_speed = -0.1  # m/s (negative to move backwards)
+                    backoff_speed = -0.009  # m/s (negative to move backwards)
                     twist.linear.x = backoff_speed
                     self.get_logger().warn(f"Front center {front_center:.0f}mm < 300mm: backing off {backoff_speed} m/s")
                 # else:
