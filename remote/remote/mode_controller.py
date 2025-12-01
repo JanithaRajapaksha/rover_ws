@@ -23,13 +23,14 @@ class UDPJoystick(Node):
         # --- ROS2 Publishers ---
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel_joy', 10)
         self.mode_pub = self.create_publisher(String, '/rover_mode', 10)
+        self.speed_pub = self.create_publisher(String, '/speed_level', 10)
 
         # --- Timer callback (50 Hz) ---
         self.timer = self.create_timer(0.1, self.receive_data)
 
         # --- Speed scaling factors (default) ---
         self.speed_level = 1  # 1, 2, 3, or 4
-        self.speed_scales = {1: 0.25, 2: 0.5, 3: 0.75, 4: 1.0}
+        self.linear_scale = 0.2
         self.angular_scale = 1.0
 
         # --- Mode state ---
@@ -85,8 +86,11 @@ class UDPJoystick(Node):
                 self.last_twist_time = time.time()
 
                 # --- Handle speed level ---
-                if speed_btn == 1 and self.prev_speed_btn == 0:
-                    self.speed_level = (self.speed_level % 3) + 1
+                if speed_btn != self.prev_speed_btn:
+                    self.speed_level = speed_btn
+                    msg = String()
+                    msg.data = str(self.speed_level)
+                    self.speed_pub.publish(msg)
                     self.get_logger().info(f"Speed level changed to {self.speed_level}")
                 self.prev_speed_btn = speed_btn
 
@@ -133,9 +137,8 @@ class UDPJoystick(Node):
             # CONTINUOUS PUBLISHING (even if no new UDP)
             # -----------------------------------------
             if self.current_mode in ["manual", "cruise"]:
-                linear_scale = self.speed_scales[self.speed_level]
                 twist = Twist()
-                twist.linear.x = self.last_x * linear_scale
+                twist.linear.x = self.last_x * self.linear_scale
                 twist.angular.z = self.last_y * -self.angular_scale
                 self.cmd_vel_pub.publish(twist)
 
