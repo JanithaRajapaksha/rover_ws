@@ -142,7 +142,7 @@ class CmdMuxNode(Node):
                 self.get_logger().warn('No valid `cmd_vel_mp` — publishing zero Twist')
                 turn = Twist()
                 turn.linear.x = 0.0
-                turn.angular.z = 0.3   # ✅ Stop turning
+                turn.angular.z = 0.1   # ✅ Stop turning
                 self.cmd_pub.publish(turn)
 
 

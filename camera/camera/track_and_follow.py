@@ -2,6 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Point, Twist
+from std_msgs.msg import String
 import socket
 import json
 import threading
@@ -53,6 +54,15 @@ class PersonTrackerPIDNode(Node):
         self.point_pub = self.create_publisher(Point, 'person_tracking_data', 10)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel_mp', 10)
 
+        # --- Subscribers ---
+        self.speed_level_sub = self.create_subscription(String, '/speed_level', self.speed_level_callback, 10)
+
+        # --- Speed level scaling ---
+        self.speed_level = 1  # 1, 2, 3, or 4
+        self.base_max_lin_vel = self.max_lin_vel
+        self.base_max_ang_vel = self.max_ang_vel
+        self.speed_scales = {1: 0.25, 2: 0.5, 3: 0.75, 4: 1.0}
+
         # --- UDP Setup ---
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((self.udp_ip, self.udp_port))
@@ -70,6 +80,23 @@ class PersonTrackerPIDNode(Node):
         # Start background UDP listener
         self.thread = threading.Thread(target=self.listen_udp, daemon=True)
         self.thread.start()
+
+    def speed_level_callback(self, msg: String):
+        """Update speed level and scale max velocities accordingly."""
+        try:
+            self.speed_level = int(msg.data)
+            # Lookup scale using the speed level as key (dict keys are 1..4)
+            scale = self.speed_scales.get(self.speed_level)
+            if scale is not None:
+                self.max_lin_vel = self.base_max_lin_vel * scale
+                self.max_ang_vel = self.base_max_ang_vel * scale
+                self.get_logger().info(
+                    f"Speed level changed to {self.speed_level}: max_lin_vel={self.max_lin_vel:.3f}, max_ang_vel={self.max_ang_vel:.3f}"
+                )
+            else:
+                self.get_logger().warning(f"Received out-of-range speed level: {self.speed_level}")
+        except (ValueError, KeyError) as e:
+            self.get_logger().warning(f"Invalid speed level message: {getattr(msg, 'data', msg)}; error: {e}")
 
     def listen_udp(self):
         """Continuously listen for UDP packets and apply dual PID control."""
