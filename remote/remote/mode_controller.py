@@ -110,8 +110,8 @@ class UDPJoystick(Node):
                     new_mode = "cruise"
                 elif follow_btn == 1:
                     new_mode = "follow"
-                elif return_btn == 1:
-                    new_mode = "return"
+                # elif return_btn == 1:
+                #     new_mode = "return"
 
                 if new_mode != self.current_mode:
                     if new_mode == "follow":

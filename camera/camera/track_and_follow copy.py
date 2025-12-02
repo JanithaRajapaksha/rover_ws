@@ -17,26 +17,21 @@ class PersonTrackerPIDNode(Node):
         self.declare_parameter('udp_port', 5005)
         self.declare_parameter('udp_ip', '0.0.0.0')
 
-        # Angular PID (for centering)
-        self.declare_parameter('kp_ang', 0.2)
+        # Angular PID (for centering) need to be calibrated 
+        self.declare_parameter('kp_ang', 0.3)
         self.declare_parameter('ki_ang', 0.0)
-        self.declare_parameter('kd_ang', 0.13)
-        self.declare_parameter('max_ang_vel', 0.3)
+        self.declare_parameter('kd_ang', 0.01)
+        self.declare_parameter('max_ang_vel', 0.2)
 
-        #Linear PID (for distance control) to be calibrated
-        self.declare_parameter('kp_lin', 0.8)
+        # Linear PID (for distance control) need to be calibrated 
+        self.declare_parameter('kp_lin', 0.5)
         self.declare_parameter('ki_lin', 0.0)
-        self.declare_parameter('kd_lin', 0.02)  
+        self.declare_parameter('kd_lin', 0.02)
         self.declare_parameter('max_lin_vel', 0.1)
 
-        # self.declare_parameter('kp_lin', 0)
-        # self.declare_parameter('ki_lin', 0)
-        # self.declare_parameter('kd_lin', 0)
-        # self.declare_parameter('max_lin_vel', 0)
-    
         # Target values
-        self.declare_parameter('target_x', 0.0)     # center     normalized X
-        self.declare_parameter('target_width', 0.3) # target bounding box width
+        self.declare_parameter('target_x', 0.0)     # center normalized X
+        self.declare_parameter('target_width', 0.5) # target bounding box width
 
         # --- Get parameter values ---
         self.udp_ip = self.get_parameter('udp_ip').get_parameter_value().string_value
