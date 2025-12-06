@@ -30,8 +30,8 @@ class UDPJoystick(Node):
 
         # --- Speed scaling factors (default) ---
         self.speed_level = 1  # 1, 2, 3, or 4
-        self.linear_scale = 0.2
-        self.angular_scale = 1.0
+        self.linear_scale = 0.1
+        self.angular_scale = 0.2
 
         # --- Mode state ---
         self.current_mode = "manual"
@@ -45,7 +45,8 @@ class UDPJoystick(Node):
         self.last_x = 0.0
         self.last_y = 0.0
         self.last_twist_time = time.time()
-
+        
+        self.last_sender = None
 
         self.get_logger().info(f"Listening for joystick UDP on {self.UDP_IP}:{self.UDP_PORT}")
 
@@ -64,7 +65,8 @@ class UDPJoystick(Node):
             # Try reading new UDP data
             # -----------------------
             try:
-                data, _ = self.sock.recvfrom(1024)
+                data, sender = self.sock.recvfrom(1024)
+                self.last_sender = sender  # (ip, port)
                 decoded = data.decode().strip()
                 parts = [p for p in decoded.split(',') if p != '']
 
@@ -110,10 +112,17 @@ class UDPJoystick(Node):
                     new_mode = "cruise"
                 elif follow_btn == 1:
                     new_mode = "follow"
-                elif return_btn == 1:
-                    new_mode = "return"
+                # elif return_btn == 1:
+                #     new_mode = "return"
 
                 if new_mode != self.current_mode:
+                    # -----------------------------
+                    # Send UDP response to remote
+                    # -----------------------------
+                    if new_mode == "cruise":
+                        self.send_mode_udp("1")  # cruise mode active
+                    elif new_mode == "manual":
+                        self.send_mode_udp("0")  # manual mode active
                     if new_mode == "follow":
                         try:
                             self.send_reset_udp(self.reset_host, self.reset_port)
@@ -144,6 +153,18 @@ class UDPJoystick(Node):
 
         except Exception as e:
             self.get_logger().error(f"Error parsing packet: {e}")
+            
+    def send_mode_udp(self, value: str):
+        """Send mode update back to the remote ESP32."""
+        if self.last_sender is None:
+            return
+        try:
+            reply_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            reply_sock.sendto(value.encode(), self.last_sender)
+            reply_sock.close()
+            self.get_logger().info(f"Sent UDP mode reply '{value}' to {self.last_sender}")
+        except Exception as e:
+            self.get_logger().error(f"Failed sending UDP mode: {e}")
 
     def _run_cmd(self, cmd_list):
         """Run a command as subprocess without blocking the main thread and swallow output."""

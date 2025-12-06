@@ -38,6 +38,10 @@ class UDPJoystick(Node):
         # UDP reset target for follow mode
         self.reset_host = "127.0.0.1"
         self.reset_port = 5007
+        
+        # Node readiness
+        self.nodes_ready = False
+        self.create_subscription(String, '/nodes_ready', self.nodes_ready_cb, 10)
 
         self.prev_speed_btn = 0
         self.prev_return_btn = 0
@@ -45,7 +49,8 @@ class UDPJoystick(Node):
         self.last_x = 0.0
         self.last_y = 0.0
         self.last_twist_time = time.time()
-
+        
+        self.last_sender = None
 
         self.get_logger().info(f"Listening for joystick UDP on {self.UDP_IP}:{self.UDP_PORT}")
 
@@ -57,6 +62,9 @@ class UDPJoystick(Node):
             self.get_logger().info(f"Sent UDP reset to {host}:{port}")
         except Exception as e:
             self.get_logger().error(f"send_reset_udp error: {e}")
+            
+    def nodes_ready_cb(self, msg):
+        self.nodes_ready = (msg.data == 'ready')
 
     def receive_data(self):
         try:
@@ -64,7 +72,8 @@ class UDPJoystick(Node):
             # Try reading new UDP data
             # -----------------------
             try:
-                data, _ = self.sock.recvfrom(1024)
+                data, sender = self.sock.recvfrom(1024)
+                self.last_sender = sender  # (ip, port)
                 decoded = data.decode().strip()
                 parts = [p for p in decoded.split(',') if p != '']
 
@@ -141,9 +150,25 @@ class UDPJoystick(Node):
                 twist.linear.x = self.last_x * self.linear_scale
                 twist.angular.z = self.last_y * -self.angular_scale
                 self.cmd_vel_pub.publish(twist)
+                
+            if self.nodes_ready:
+                self.send_mode_udp("1")  # cruise mode active
 
         except Exception as e:
             self.get_logger().error(f"Error parsing packet: {e}")
+            
+    def send_mode_udp(self, value: str):
+        """Send mode update back to the remote ESP32 using static IP and port."""
+        ESP32_IP = "192.168.4.10"     # <-- your static ESP32 IP
+        ESP32_PORT = 4210             # <-- your UDP port
+
+        try:
+            reply_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            reply_sock.sendto(value.encode(), self.last_sender)
+            reply_sock.close()
+        except Exception as e:
+            self.get_logger().error(f"Failed sending UDP mode: {e}")
+
 
     def _run_cmd(self, cmd_list):
         """Run a command as subprocess without blocking the main thread and swallow output."""

@@ -27,6 +27,7 @@ install (PROGRAMS
   remote/remote_joystick.py
   remote/full_remote.py
   remote/mode_controller.py
+  remote/controller_ready_pub.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

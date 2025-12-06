@@ -11,7 +11,7 @@ Run with:
 import os
 
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, LogInfo
+from launch.actions import IncludeLaunchDescription, LogInfo, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
@@ -42,12 +42,23 @@ def generate_launch_description():
         output='screen'
     )
 
+	delayed_mode_controller = TimerAction(
+			period=2.0,
+			actions=[mode_controller_node]
+	)
+ 
+	controller_ready_node = Node(
+		package='remote',
+		executable='controller_ready_pub.py',
+		output='screen'
+	)
+
 	actions = []
-	actions.append(mode_controller_node)
 	# actions.append(tof_pid_node)
 	for lf in launch_files:
 		actions.append(LogInfo(msg=f"Including launch file: {lf}"))
 		actions.append(IncludeLaunchDescription(PythonLaunchDescriptionSource(lf)))
-
+	actions.append(delayed_mode_controller)
+	actions.append(controller_ready_node)
 	return LaunchDescription(actions)
 

@@ -21,7 +21,7 @@ class PersonTrackerPIDNode(Node):
         self.declare_parameter('kp_ang', 0.2)
         self.declare_parameter('ki_ang', 0.0)
         self.declare_parameter('kd_ang', 0.13)
-        self.declare_parameter('max_ang_vel', 0.3)
+        self.declare_parameter('max_ang_vel', 0.2)
 
         #Linear PID (for distance control) to be calibrated
         self.declare_parameter('kp_lin', 0.8)
@@ -36,7 +36,7 @@ class PersonTrackerPIDNode(Node):
     
         # Target values
         self.declare_parameter('target_x', 0.0)     # center     normalized X
-        self.declare_parameter('target_width', 0.3) # target bounding box width
+        self.declare_parameter('target_width', 0.25) # target bounding box width
 
         # --- Get parameter values ---
         self.udp_ip = self.get_parameter('udp_ip').get_parameter_value().string_value
@@ -66,7 +66,7 @@ class PersonTrackerPIDNode(Node):
         self.speed_level = 1  # 1, 2, 3, or 4
         self.base_max_lin_vel = self.max_lin_vel
         self.base_max_ang_vel = self.max_ang_vel
-        self.speed_scales = {1: 0.25, 2: 0.5, 3: 0.75, 4: 1.0}
+        self.speed_scales = {1: 0.5, 2: 0.6, 3: 0.75, 4: 1.0}
 
         # --- UDP Setup ---
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -153,6 +153,9 @@ class PersonTrackerPIDNode(Node):
                     self.kd_lin * derivative_lin
                 )
                 linear_x = max(-self.max_lin_vel, min(self.max_lin_vel, linear_x))
+                
+                if width >= self.target_width:
+                    linear_x = 0.0
 
                 # -------------------
                 # Publish Twist command
